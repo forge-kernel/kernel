@@ -59,7 +59,7 @@ final class StarterRemoveCommand extends Command
         $registryPath = $this->registryService->getRegistryPath('starter');
         $manifestPath = $registryPath . '/starters.json';
         $starterNameKebab = self::toKebabCase($this->name);
-        $starterDir = $registryPath . '/starters/' . $starterNameKebab;
+        $starterDir = $registryPath . '/starter-templates/' . $starterNameKebab;
 
         $manifest = $this->manifestService->readModulesManifest($manifestPath);
         $starters = $manifest['starters'] ?? [];
@@ -71,7 +71,7 @@ final class StarterRemoveCommand extends Command
 
         $messages = [];
         $messages[] = "This will DELETE the following:";
-        $messages[] = "  - Starter directory: starters/{$starterNameKebab}/";
+        $messages[] = "  - Starter directory: starter-templates/{$starterNameKebab}/";
         $messages[] = "  - Starter entry from starters.json";
         $messages[] = "";
         $messages[] = "Starter: {$this->name}";

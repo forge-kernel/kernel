@@ -47,7 +47,7 @@ final class StarterScaffoldCommand extends Command
         }
 
         $starterNameKebab = self::toKebabCase($this->name);
-        $starterDir = $this->source ?? BASE_PATH . "/starters/{$starterNameKebab}";
+        $starterDir = $this->source ?? BASE_PATH . "/starter-templates/{$starterNameKebab}";
 
         if (is_dir($starterDir)) {
             $this->error("Starter '{$starterNameKebab}' already exists at: {$starterDir}");
@@ -194,7 +194,7 @@ HTACCESS
         $this->writeEnvFiles($starterDir);
         $this->writeMetaFiles($starterDir);
 
-        $installSource = BASE_PATH . '/starters/blank/install.php';
+        $installSource = BASE_PATH . '/starter-templates/blank/install.php';
         if (file_exists($installSource)) {
             copy($installSource, "{$starterDir}/install.php");
         } else {

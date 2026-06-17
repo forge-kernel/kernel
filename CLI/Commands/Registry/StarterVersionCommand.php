@@ -88,7 +88,7 @@ final class StarterVersionCommand extends Command
         }
 
         $starterNameKebab = self::toKebabCase($this->name);
-        $sourceDir = $this->source ?? BASE_PATH . "/starters/{$this->name}";
+        $sourceDir = $this->source ?? BASE_PATH . "/starter-templates/{$this->name}";
 
         if (!is_dir($sourceDir)) {
             $this->error("Starter source directory not found: {$sourceDir}");
@@ -170,7 +170,7 @@ final class StarterVersionCommand extends Command
         }
 
         // Create version directory in registry
-        $versionDir = $registryPath . "/starters/{$starterNameKebab}/{$this->version}";
+        $versionDir = $registryPath . "/starter-templates/{$starterNameKebab}/{$this->version}";
         if (!is_dir($versionDir)) {
             mkdir($versionDir, 0755, true);
         }
