@@ -170,7 +170,7 @@ final class StarterVersionCommand extends Command
         }
 
         // Create version directory in registry
-        $versionDir = $registryPath . "/starter-templates/{$starterNameKebab}/{$this->version}";
+        $versionDir = $registryPath . "/starters/{$starterNameKebab}/{$this->version}";
         if (!is_dir($versionDir)) {
             mkdir($versionDir, 0755, true);
         }
