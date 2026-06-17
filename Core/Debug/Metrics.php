@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Forge\Core\Debug;
+
+use Forge\Core\Config\EnvParser;
+
+class Metrics
+{
+    private static array $timers = [];
+
+    public static function isEnabled(): bool
+    {
+      $envPath = BASE_PATH . "/.env";
+
+      EnvParser::load($envPath);
+      return (bool) $_ENV['APP_METRICS_ENABLED'] ?? false;
+    }
+
+    public static function start(string $key): void
+    {
+        if (!self::isEnabled()) {
+            return;
+        }
+
+
+        self::$timers[$key] = [
+            'start' => microtime(true),
+            'memory_start' => memory_get_usage()
+        ];
+    }
+
+    public static function stop(string $key): void
+    {
+        if (!self::isEnabled()) {
+            return;
+        }
+
+        if (!isset(self::$timers[$key])) {
+            return;
+        }
+
+        self::$timers[$key]['end'] = microtime(true);
+        self::$timers[$key]['memory_end'] = memory_get_usage();
+        self::$timers[$key]['duration'] = self::$timers[$key]['end'] - self::$timers[$key]['start'];
+        self::$timers[$key]['memory_used'] = self::$timers[$key]['memory_end'] - self::$timers[$key]['memory_start'];
+    }
+
+    public static function addGlobalTimer(string $key): void
+    {
+        if (!self::isEnabled()) {
+            return;
+        }
+
+        if (!defined('FORGE_START')) {
+            define('FORGE_START', microtime(true));
+        }
+
+        $startTime = FORGE_START;
+        $endTime = microtime(true);
+
+        self::$timers[$key] = [
+            'start' => $startTime,
+            'end' => $endTime,
+            'duration' => $endTime - $startTime,
+            'memory_used' => memory_get_usage() - memory_get_usage(true)
+        ];
+    }
+
+    public static function get(): array
+    {
+        if (!self::isEnabled()) {
+            return [];
+        }
+        return self::$timers;
+    }
+
+    public static function print(): void
+    {
+        if (!self::isEnabled()) {
+            return;
+        }
+
+        foreach (self::$timers as $key => $data) {
+            echo sprintf(
+                "%s: %.5f sec, %d KB\n",
+                $key,
+                $data['duration'] ?? 0,
+                ($data['memory_used'] ?? 0) / 1024
+            );
+        }
+    }
+}

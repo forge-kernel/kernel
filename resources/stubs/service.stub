@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ serviceNameSpace }};
+
+use Forge\Core\DI\Attributes\Service;
+
+#[Service]
+final class {{ serviceName }}
+{
+    public function doSomething(): void
+    {
+        // you logic
+    }
+}

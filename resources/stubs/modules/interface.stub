@@ -1,0 +1,8 @@
+<?php
+
+namespace App\Modules\{{ moduleName }}\Contracts;
+
+interface {{ interfaceName }}
+{
+	public function doSomething(): string;
+}

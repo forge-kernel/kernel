@@ -1,0 +1,13 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ traitNameSpace }};
+
+trait {{ traitName }}
+{
+    public function doSomething(): void
+    {
+        // trait logic
+    }
+}

@@ -1,0 +1,27 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ dtoNameSpace }};
+
+final class {{ dtoName }}DTO
+{
+    public function __construct(
+        public string $name = '',
+    ) {
+    }
+
+    public static function fromArray(array $a): self
+    {
+        return new self(
+            (string)($a['name'] ?? ''),
+        );
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'name' => $this->name,
+        ];
+    }
+}

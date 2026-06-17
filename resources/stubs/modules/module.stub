@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\{{ moduleName }};
+
+use Forge\Core\DI\Container;
+use Forge\Core\Module\Attributes\Compatibility;
+use Forge\Core\Module\Attributes\ConfigDefaults;
+use Forge\Core\Module\Attributes\Module;
+use Forge\Core\Module\Attributes\PostInstall;
+use Forge\Core\Module\Attributes\PostUninstall;
+use Forge\Core\Module\Attributes\Provides;
+use Forge\Core\Module\Attributes\Repository;
+use App\Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
+use App\Modules\{{ moduleName }}\Services\{{ serviceName }};
+use Forge\Core\Module\Attributes\LifecycleHook;
+use Forge\Core\Module\LifecycleHookName;
+use Forge\Core\DI\Attributes\Service;
+use Forge\CLI\Traits\OutputHelper;
+{{ structureAttribute }}
+
+#[Service]
+#[Module(name: '{{ moduleName }}', version: '{{ moduleVersion }}', description: '{{ moduleDescription }}', order: 99, author: 'Your Name', license: 'MIT', tags: [])]
+#[Compatibility(framework: '>={{ frameworkVersion }}', php: '>=8.3')]
+#[Provides(interface: {{ interfaceName }}::class, version: '{{ moduleVersion }}')]
+#[Repository(type: 'git', url: 'https://github.com/forge-kernel/kerenel-module-registry')]
+#[ConfigDefaults(defaults: [
+    "{{ moduleConfig }}" => []
+])]
+#[PostInstall(command: '{{ command }}:greet', args: [])]
+#[PostUninstall(command: '{{ command }}:greet', args: ['--post-uninstall'])]
+final class {{ moduleName }}Module
+{
+    use OutputHelper;
+    public function register(Container $container): void
+    {
+        $container->bind({{ interfaceName }}::class, {{ serviceName }}::class);
+    }
+
+    #[LifecycleHook(hook: LifecycleHookName::AFTER_MODULE_REGISTER)]
+    	public function onAfterModuleRegister(): void
+    	{
+    		//error_log("{{ moduleName }}:  registered!");
+    	}
+}

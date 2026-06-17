@@ -1,0 +1,11 @@
+{
+	"$schema": "./../../kernel/Core/Schema/module-schema.json",
+	"name": "{{ moduleName }}",
+	"version": "{{ moduleVersion }}",
+	"description": "{{ moduleDescription }}",
+	"type": "generic",
+	"order": 99,
+	"tags": [],
+	"author": "Your name",
+	"license: "LICENSE"
+}
