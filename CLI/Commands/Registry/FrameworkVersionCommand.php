@@ -50,38 +50,38 @@ final class FrameworkVersionCommand extends Command
     {
         $this->wizard($args);
 
-        if ($this->registryService->isRegistryDirectoryInitialized('framework')) {
-            if (!$this->registryService->isRegistryConfigured('framework')) {
-                $this->info('Framework registry directory exists with git repository. Using existing registry.');
+        if ($this->registryService->isRegistryDirectoryInitialized('kernel')) {
+            if (!$this->registryService->isRegistryConfigured('kernel')) {
+                $this->info('Kernel registry directory exists with git repository. Using existing registry.');
             }
-        } elseif (!$this->registryService->isRegistryConfigured('framework')) {
-            $this->warning('Framework registry not found or not configured.');
+        } elseif (!$this->registryService->isRegistryConfigured('kernel')) {
+            $this->warning('Kernel registry not found or not configured.');
             $proceed = $this->templateGenerator->askQuestion(
-                'Would you like to initialize the framework registry now? (yes/no): ',
+                'Would you like to initialize the kernel registry now? (yes/no): ',
                 'yes'
             );
 
             if (in_array(strtolower($proceed), ['yes', 'y', '1', 'true'], true)) {
-                $this->info('Initializing framework registry...');
+                $this->info('Initializing kernel registry...');
                 $initCommand = new RegistryInitCommand($this->registryService, $this->templateGenerator);
-                $initResult = $initCommand->execute(['--type=framework']);
+                $initResult = $initCommand->execute(['--type=kernel']);
                 if ($initResult !== 0) {
                     return 1;
                 }
             } else {
-                $this->error('Cannot proceed without a framework registry.');
-                $this->info('Run: php forge.php dev:registry:init --type=framework');
+                $this->error('Cannot proceed without a kernel registry.');
+                $this->info('Run: php forge.php dev:registry:init --type=kernel');
                 return 1;
             }
         }
 
-        if (!$this->registryService->validateRegistry('framework')) {
-            $this->error('Framework registry validation failed.');
+        if (!$this->registryService->validateRegistry('kernel')) {
+            $this->error('Kernel registry validation failed.');
             return 1;
         }
 
         $currentVersion = $this->versionService->detectFrameworkVersion();
-        $registryPath = $this->registryService->getRegistryPath('framework');
+        $registryPath = $this->registryService->getRegistryPath('kernel');
         $manifestPath = $registryPath . '/forge.json';
         $enginePath = BASE_PATH . '/kernel';
 
@@ -107,7 +107,7 @@ final class FrameworkVersionCommand extends Command
             return 1;
         }
 
-        $this->info("Updating framework version in source...");
+        $this->info("Updating kernel version in source...");
         $this->versionService->updateFrameworkVersion($this->version);
 
         if ($this->gitService->isGitRepository(BASE_PATH)) {
@@ -115,7 +115,7 @@ final class FrameworkVersionCommand extends Command
             $this->info("Committing version bump to main repository...");
 
             if ($this->gitService->addFile(BASE_PATH, $versionFilePath)) {
-                if ($this->gitService->commitFile(BASE_PATH, $versionFilePath, "Bump framework version to v{$this->version}")) {
+                if ($this->gitService->commitFile(BASE_PATH, $versionFilePath, "Bump kernel version to v{$this->version}")) {
                     $this->success("Version bump committed to main repository.");
                 } else {
                     $this->warning("Failed to commit version bump to main repository, but file was updated.");
@@ -158,7 +158,7 @@ final class FrameworkVersionCommand extends Command
             'download_url' => 'versions/' . $this->version . '.zip',
             'integrity' => $integrity,
             'release_date' => date('Y-m-d'),
-            'release_notes_url' => 'https://github.com/forge-kernel/forge/blob/main/CHANGELOG.md',
+            'release_notes_url' => 'https://github.com/forge-kernel/kernel/blob/main/CHANGELOG.md',
             'require' => $manifest['require'] ?? ['php' => '>=8.3'],
         ];
         $manifest['versions']['latest'] = $this->version;
@@ -169,7 +169,7 @@ final class FrameworkVersionCommand extends Command
         }
 
         $changelogPath = BASE_PATH . '/CHANGELOG.md';
-        $commitMessage = "Add framework version v{$this->version}";
+        $commitMessage = "Add kernel version v{$this->version}";
 
         if (file_exists($changelogPath)) {
             $changelog = file_get_contents($changelogPath);
@@ -194,7 +194,7 @@ final class FrameworkVersionCommand extends Command
             return 1;
         }
 
-        $this->success("Framework version {$this->version} created successfully!");
+        $this->success("Kernel version {$this->version} created successfully!");
         $this->info("ZIP file: {$zipPath}");
         $this->info("Manifest updated: {$manifestPath}");
 

@@ -32,31 +32,31 @@ final class FrameworkPublishCommand extends Command
     public function execute(array $args): int
     {
         if (
-            !$this->registryService->isRegistryConfigured('framework') &&
-            !$this->registryService->isRegistryDirectoryInitialized('framework')
+            !$this->registryService->isRegistryConfigured('kernel') &&
+            !$this->registryService->isRegistryDirectoryInitialized('kernel')
         ) {
-            $this->error('Framework registry not found or not configured.');
-            $this->info('Run: php forge.php dev:registry:init --type=framework');
+            $this->error('Kernel registry not found or not configured.');
+            $this->info('Run: php forge.php dev:registry:init --type=kernel');
             return 1;
         }
 
-        $registryPath = $this->registryService->getRegistryPath('framework');
-        $config = $this->registryService->getRegistryConfig('framework');
+        $registryPath = $this->registryService->getRegistryPath('kernel');
+        $config = $this->registryService->getRegistryConfig('kernel');
 
         if (!$config) {
-            $this->info('Auto-detecting framework registry configuration from git repository...');
-            $config = $this->registryService->getRegistryConfigOrDetect('framework');
+            $this->info('Auto-detecting kernel registry configuration from git repository...');
+            $config = $this->registryService->getRegistryConfigOrDetect('kernel');
         }
 
         if (!$config) {
             $this->error('Registry configuration not found and could not be auto-detected.');
-            $this->info('Run: php forge.php dev:registry:init --type=framework');
+            $this->info('Run: php forge.php dev:registry:init --type=kernel');
             return 1;
         }
 
         if (!isset($config['url']) || $config['url'] === null) {
             $this->error('Registry remote URL not found. Cannot publish without a remote repository.');
-            $this->info('Run: php forge.php dev:registry:config --type=framework --url=<repository_url>');
+            $this->info('Run: php forge.php dev:registry:config --type=kernel --url=<repository_url>');
             return 1;
         }
 
@@ -71,7 +71,7 @@ final class FrameworkPublishCommand extends Command
             return 1;
         }
 
-        $this->success("Framework registry published successfully!");
+        $this->success("Kernel registry published successfully!");
         return 0;
     }
 }
