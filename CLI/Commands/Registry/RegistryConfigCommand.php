@@ -13,7 +13,7 @@ use Forge\Core\Services\RegistryService;
 use Forge\Core\Services\TemplateGenerator;
 
 #[Cli(
-    command: 'registry:config',
+    command: 'dev:registry:config',
     description: 'Configure registry settings (git origin, branch, etc.)',
     usage: 'dev:registry:config [--type=framework|modules]',
     examples: [
@@ -24,34 +24,35 @@ use Forge\Core\Services\TemplateGenerator;
 final class RegistryConfigCommand extends Command
 {
     use CliGenerator;
-    
+
     #[Arg(name: 'type', description: 'Registry type (framework or modules)', required: false)]
     private ?string $type = null;
-    
+
     public function __construct(
         private readonly RegistryService $registryService,
         private readonly GitService $gitService,
         private readonly TemplateGenerator $templateGenerator
-    ) {}
-    
+    ) {
+    }
+
     public function execute(array $args): int
     {
         $this->wizard($args);
-        
+
         if (!$this->type) {
             $this->type = $this->templateGenerator->askQuestion(
                 'Registry type (framework/modules): ',
                 'modules'
             );
         }
-        
+
         if (!in_array($this->type, ['framework', 'modules'], true)) {
             $this->error('Invalid registry type. Must be "framework" or "modules".');
             return 1;
         }
-        
+
         $config = $this->registryService->getRegistryConfig($this->type);
-        
+
         if ($config) {
             $this->info("Current configuration for {$this->type} registry:");
             $this->line("URL: " . ($config['url'] ?? 'Not set'));
@@ -63,32 +64,32 @@ final class RegistryConfigCommand extends Command
             $this->info("No configuration found for {$this->type} registry.");
             $this->line("");
         }
-        
+
         $url = $this->templateGenerator->askQuestion(
             'Git repository URL: ',
             $config['url'] ?? ''
         );
-        
+
         if (empty($url)) {
             $this->error('Git repository URL is required.');
             return 1;
         }
-        
+
         $branch = $this->templateGenerator->askQuestion(
             'Branch name: ',
             $config['branch'] ?? 'main'
         );
-        
+
         $isPrivateInput = $this->templateGenerator->askQuestion(
             'Is this a private repository? (yes/no): ',
             $config['private'] ? 'yes' : 'no'
         );
         $isPrivate = in_array(strtolower($isPrivateInput), ['yes', 'y', '1', 'true'], true);
-        
+
         $path = $this->registryService->getRegistryPath($this->type);
-        
+
         $this->info("Updating registry configuration...");
-        
+
         $configPath = BASE_PATH . '/config/registry.php';
         $allConfig = [];
 
@@ -121,13 +122,12 @@ final class RegistryConfigCommand extends Command
         $content .= "];\n";
 
         file_put_contents($configPath, $content);
-        
+
         if ($this->registryService->isRegistryConfigured($this->type)) {
             $this->gitService->setRemote($path, 'origin', $url);
         }
-        
+
         $this->success("Registry configuration updated successfully!");
         return 0;
     }
 }
-

@@ -17,13 +17,13 @@ use Forge\Core\Services\TemplateGenerator;
 use Forge\Core\Services\VersionService;
 
 #[Cli(
-    command: 'framework:version',
-    description: 'Create a new framework version (zip, update manifest, commit)',
-    usage: 'dev:framework:version [--version=X.Y.Z] [--type=patch|minor|major]',
+    command: 'dev:kernel:version',
+    description: 'Create a new kernel version (zip, update manifest, commit)',
+    usage: 'dev:kernel:version [--version=X.Y.Z] [--type=patch|minor|major]',
     examples: [
-        'dev:framework:version',
-        'dev:framework:version --type=minor',
-        'dev:framework:version --version=1.2.0',
+        'dev:kernel:version',
+        'dev:kernel:version --type=minor',
+        'dev:kernel:version --version=1.2.0',
     ]
 )]
 final class FrameworkVersionCommand extends Command

@@ -12,7 +12,7 @@ use Forge\Core\Services\RegistryService;
 use Forge\Core\Services\TemplateGenerator;
 
 #[Cli(
-    command: 'registry:init',
+    command: 'dev:registry:init',
     description: 'Initialize a new registry (framework or modules) with wizard',
     usage: 'dev:registry:init [--type=framework|modules]',
     examples: [
@@ -23,15 +23,16 @@ use Forge\Core\Services\TemplateGenerator;
 final class RegistryInitCommand extends Command
 {
     use CliGenerator;
-    
+
     #[Arg(name: 'type', description: 'Registry type (framework or modules)', required: false)]
     private ?string $type = null;
-    
+
     public function __construct(
         private readonly RegistryService $registryService,
         private readonly TemplateGenerator $templateGenerator
-    ) {}
-    
+    ) {
+    }
+
     public function execute(array $args): int
     {
         $typeFromArgs = null;
@@ -41,10 +42,10 @@ final class RegistryInitCommand extends Command
                 break;
             }
         }
-        
+
         if ($typeFromArgs && in_array($typeFromArgs, ['framework', 'modules'], true)) {
             $this->type = $typeFromArgs;
-            
+
             if ($this->registryService->isRegistryDirectoryInitialized($this->type)) {
                 if (!$this->showDestructiveWarning($this->type)) {
                     return 0;
@@ -53,7 +54,7 @@ final class RegistryInitCommand extends Command
         } else {
             $frameworkExists = $this->registryService->isRegistryDirectoryInitialized('framework');
             $modulesExists = $this->registryService->isRegistryDirectoryInitialized('modules');
-            
+
             if ($frameworkExists || $modulesExists) {
                 $messages = [];
                 $messages[] = "One or more registries already exist:";
@@ -68,66 +69,66 @@ final class RegistryInitCommand extends Command
                 $messages[] = "Set/update git remote origin";
                 $messages[] = "Create an initial commit (if not already committed)";
                 $messages[] = "Potentially overwrite existing configuration";
-                
+
                 $this->showDangerBox('DESTRUCTIVE ACTION WARNING', $messages, 'This action may cause data loss if the registry is already in use!');
-                
+
                 $confirm = $this->templateGenerator->askQuestion(
                     'Type "yes, continue" to proceed (you will be asked which registry to initialize) or press Enter to cancel: ',
                     ''
                 );
-                
+
                 if (strtolower(trim($confirm)) !== 'yes, continue') {
                     $this->info('Initialization cancelled. Existing registries left untouched.');
                     return 0;
                 }
-                
+
                 $this->line("");
             }
         }
-        
+
         $this->wizardWithoutDescription($args);
-        
+
         if (!$this->type) {
             $this->type = $this->templateGenerator->askQuestion(
                 'Registry type (framework/modules): ',
                 'modules'
             );
         }
-        
+
         if (!in_array($this->type, ['framework', 'modules'], true)) {
             $this->error('Invalid registry type. Must be "framework" or "modules".');
             return 1;
         }
-        
+
         if (!$typeFromArgs && $this->registryService->isRegistryDirectoryInitialized($this->type)) {
             if (!$this->showDestructiveWarning($this->type)) {
                 return 0;
             }
         }
-        
+
         $url = $this->templateGenerator->askQuestion(
             'Git repository URL: ',
             ''
         );
-        
+
         if (empty($url)) {
             $this->error('Git repository URL is required.');
             return 1;
         }
-        
+
         $branch = $this->templateGenerator->askQuestion(
             'Branch name: ',
             'main'
         );
-        
+
         $isPrivateInput = $this->templateGenerator->askQuestion(
             'Is this a private repository? (yes/no): ',
             'no'
         );
         $isPrivate = in_array(strtolower($isPrivateInput), ['yes', 'y', '1', 'true'], true);
-        
+
         $this->info("Initializing {$this->type} registry...");
-        
+
         try {
             $this->registryService->initializeRegistry(
                 $this->type,
@@ -135,7 +136,7 @@ final class RegistryInitCommand extends Command
                 $branch,
                 $isPrivate
             );
-            
+
             $this->success("Registry initialized successfully!");
             return 0;
         } catch (\Exception $e) {
@@ -143,11 +144,11 @@ final class RegistryInitCommand extends Command
             return 1;
         }
     }
-    
+
     private function showDestructiveWarning(string $type): bool
     {
         $registryPath = $this->registryService->getRegistryPath($type);
-        
+
         $messages = [];
         $messages[] = "The {$type} registry already exists at: {$registryPath}";
         $messages[] = "This directory contains a git repository and may have existing data.";
@@ -156,26 +157,26 @@ final class RegistryInitCommand extends Command
         $messages[] = "Set/update git remote origin";
         $messages[] = "Create an initial commit (if not already committed)";
         $messages[] = "Potentially overwrite existing configuration";
-        
+
         $this->showDangerBox('DESTRUCTIVE ACTION WARNING', $messages, 'This action may cause data loss if the registry is already in use!');
-        
+
         $confirm = $this->templateGenerator->askQuestion(
             "Type \"yes, initialize\" to proceed with {$type} registry initialization (or press Enter to cancel): ",
             ''
         );
-        
+
         if (strtolower(trim($confirm)) !== 'yes, initialize') {
             $this->info("{$type} registry initialization cancelled. Existing registry left untouched.");
             return false;
         }
-        
+
         $this->line("");
         $this->warning("Proceeding with {$type} registry initialization...");
         $this->line("");
-        
+
         return true;
     }
-    
+
     private function wizardWithoutDescription(array $argv): void
     {
         $ref = new \ReflectionObject($this);
@@ -222,7 +223,7 @@ final class RegistryInitCommand extends Command
             $prop->setValue($this, $value);
         }
     }
-    
+
     private function extractValue(string $name, array $argv): mixed
     {
         foreach ($argv as $i => $token) {
@@ -246,4 +247,3 @@ final class RegistryInitCommand extends Command
         return null;
     }
 }
-
