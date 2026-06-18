@@ -263,8 +263,8 @@ final class AttributeDiscoveryService
         $class = str_replace(['.php', '/'], ['', '\\'], $relativePath);
         $class = ltrim($class, '\\');
 
-        if (str_starts_with($class, 'engine\\Core\\')) {
-            $class = str_replace('engine\\Core\\', 'Forge\\Core\\', $class);
+        if (str_starts_with($class, 'kernel\\Core\\')) {
+            $class = str_replace('kernel\\Core\\', 'Forge\\Core\\', $class);
         } elseif (str_starts_with($class, 'app\\')) {
             $class = str_replace('app\\', 'App\\', $class);
         } elseif (str_starts_with($class, 'modules\\')) {
