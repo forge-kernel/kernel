@@ -71,11 +71,13 @@ final class StarterScaffoldCommand extends Command
 
         $this->info("Scaffolding starter '{$starterNameKebab}'...");
 
+        $baseDir = "{$starterDir}/base";
+
         $dirs = [
-            "{$starterDir}/app",
-            "{$starterDir}/config",
-            "{$starterDir}/public",
-            "{$starterDir}/storage",
+            "{$baseDir}/app",
+            "{$baseDir}/config",
+            "{$baseDir}/public",
+            "{$baseDir}/storage",
         ];
 
         foreach ($dirs as $dir) {
@@ -85,7 +87,7 @@ final class StarterScaffoldCommand extends Command
         }
 
         file_put_contents(
-            "{$starterDir}/forge.json",
+            "{$baseDir}/forge.json",
             json_encode([
                 'name' => $displayName,
                 'kernel' => [
@@ -99,12 +101,12 @@ final class StarterScaffoldCommand extends Command
         );
 
         file_put_contents(
-            "{$starterDir}/index.php",
+            "{$baseDir}/index.php",
             "<?php\n\nhttp_response_code(403);\necho \"Access denied.\";\nexit();\n"
         );
 
         file_put_contents(
-            "{$starterDir}/forge.php",
+            "{$baseDir}/forge.php",
             <<<'PHP'
 #!/usr/bin/env php
 <?php
@@ -141,7 +143,7 @@ PHP
         );
 
         file_put_contents(
-            "{$starterDir}/public/index.php",
+            "{$baseDir}/public/index.php",
             <<<'PHP'
 <?php
 
@@ -150,7 +152,7 @@ declare(strict_types=1);
 define("BASE_PATH", dirname(__DIR__));
 
 require_once BASE_PATH . "/kernel/Core/Support/helpers.php";
-require BASE_PATH . "/kernel/Core/Autoloader.php";
+require_once BASE_PATH . "/kernel/Core/Autoloader.php";
 
 \Forge\Core\Autoloader::register();
 
@@ -165,7 +167,7 @@ PHP
         );
 
         file_put_contents(
-            "{$starterDir}/public/.htaccess",
+            "{$baseDir}/public/.htaccess",
             <<<'HTACCESS'
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -190,27 +192,225 @@ Options -Indexes
 HTACCESS
         );
 
-        $this->writeConfigFiles($starterDir);
-        $this->writeEnvFiles($starterDir);
-        $this->writeMetaFiles($starterDir);
+        $this->writeConfigFiles($baseDir);
+        $this->writeEnvFiles($baseDir);
+        $this->writeMetaFiles($baseDir, $starterNameKebab, $description);
 
         $installSource = BASE_PATH . '/starter-templates/blank/install.php';
         if (file_exists($installSource)) {
-            copy($installSource, "{$starterDir}/install.php");
+            copy($installSource, "{$baseDir}/install.php");
         } else {
+            $installFallback = BASE_PATH . '/forge-starter/install.php';
+            if (file_exists($installFallback)) {
+                file_put_contents(
+                    "{$baseDir}/install.php",
+                    file_get_contents($installFallback)
+                );
+            }
+        }
+
+        $configOptions = $this->collectConfigOptions();
+        if (!empty($configOptions)) {
             file_put_contents(
-                "{$starterDir}/install.php",
-                file_get_contents(BASE_PATH . '/forge-starter/install.php')
+                "{$starterDir}/starter-config.json",
+                json_encode(['options' => $configOptions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
             );
+
+            foreach ($configOptions as $optionDef) {
+                foreach ($optionDef['options'] as $choice) {
+                    $optionDir = "{$starterDir}/{$choice['value']}";
+                    if (!is_dir($optionDir)) {
+                        mkdir($optionDir, 0755, true);
+                    }
+                    file_put_contents("{$optionDir}/.gitkeep", '');
+                }
+            }
+
+            $this->info('Config options scaffolded with empty subdirectories.');
         }
 
         $relativePath = str_replace(BASE_PATH . '/', '', $starterDir);
         $this->success("Starter '{$starterNameKebab}' scaffolded successfully at: {$starterDir}");
         $this->info("Next steps:");
-        $this->info("  1. Edit {$relativePath}/forge.json to add modules");
-        $this->info("  2. php forge.php dev:starter:version --name={$starterNameKebab}");
+        $this->info("  1. Edit {$relativePath}/base/forge.json to add modules");
+        $this->info("  2. Populate option subdirectories with overlay files");
+        if (file_exists("{$starterDir}/starter-config.json")) {
+            $this->info("  3. Edit {$relativePath}/starter-config.json to refine options");
+            $this->info("  4. php forge.php dev:starter:version --name={$starterNameKebab}");
+        } else {
+            $this->info("  2. php forge.php dev:starter:version --name={$starterNameKebab}");
+        }
 
         return 0;
+    }
+
+    private function collectConfigOptions(): array
+    {
+        $addOptions = $this->templateGenerator->askQuestion(
+            'Would you like to define configurable options (e.g., auth implementation, features)? (yes/no): ',
+            'no'
+        );
+
+        if (!in_array(strtolower($addOptions), ['yes', 'y', '1', 'true'], true)) {
+            return [];
+        }
+
+        $this->line('');
+        $this->info('── Define Config Options ──────────────────────────────');
+        $this->line('Each option is a choice point for users scaffolding this starter.');
+        $this->line('Option values map to subdirectories that will be overlaid on base/.');
+        $this->line('');
+
+        $options = [];
+        $optionIndex = 1;
+
+        while (true) {
+            $this->info("Option #{$optionIndex}:");
+
+            $key = $this->templateGenerator->askQuestion(
+                '  Key (e.g., "auth", "features"): ',
+                'option-' . $optionIndex
+            );
+
+            $label = $this->templateGenerator->askQuestion(
+                '  Label (e.g., "Auth Implementation"): ',
+                $this->toPascalCase($key)
+            );
+
+            $typeInput = $this->templateGenerator->selectFromList(
+                '  Type:',
+                ['select', 'multi-select'],
+                'select'
+            );
+            $type = $typeInput === 'multi-select' ? 'multi-select' : 'select';
+
+            $requiredInput = $this->templateGenerator->askQuestion(
+                '  Required? (yes/no): ',
+                'yes'
+            );
+            $required = in_array(strtolower($requiredInput), ['yes', 'y', '1', 'true'], true);
+
+            if ($type === 'multi-select') {
+                $defaultInput = $this->templateGenerator->askQuestion(
+                    '  Default values (comma-separated, leave empty for none): ',
+                    ''
+                );
+            } else {
+                $defaultInput = $this->templateGenerator->askQuestion(
+                    '  Default value (leave empty for none): ',
+                    ''
+                );
+            }
+
+            $this->line('');
+            $this->info("  Define choices for \"{$key}\":");
+
+            $choices = [];
+            $choiceIndex = 1;
+
+            while (true) {
+                $this->line('');
+                $this->info("  Choice #{$choiceIndex}:");
+
+                $choiceValue = $this->templateGenerator->askQuestion(
+                    '    Value (maps to subdirectory name, e.g., "standard"): ',
+                    'choice-' . $choiceIndex
+                );
+
+                $choiceLabel = $this->templateGenerator->askQuestion(
+                    '    Label (e.g., "Standard Auth"): ',
+                    $this->toPascalCase($choiceValue)
+                );
+
+                $choiceDescription = $this->templateGenerator->askQuestion(
+                    '    Description (shown to user during selection): ',
+                    ''
+                );
+
+                $choiceModules = [];
+                $addModules = $this->templateGenerator->askQuestion(
+                    '    Add module dependencies for this choice? (yes/no): ',
+                    'no'
+                );
+
+                if (in_array(strtolower($addModules), ['yes', 'y', '1', 'true'], true)) {
+                    while (true) {
+                        $modName = $this->templateGenerator->askQuestion(
+                            '      Module name (e.g., forge-app-auth): ',
+                            ''
+                        );
+                        if (empty($modName)) {
+                            break;
+                        }
+                        $modVersion = $this->templateGenerator->askQuestion(
+                            '      Version (e.g., "latest", "1.0.0"): ',
+                            'latest'
+                        );
+                        $choiceModules[$modName] = $modVersion;
+
+                        $more = $this->templateGenerator->askQuestion(
+                            '      Add another module? (yes/no): ',
+                            'no'
+                        );
+                        if (!in_array(strtolower($more), ['yes', 'y', '1', 'true'], true)) {
+                            break;
+                        }
+                    }
+                }
+
+                $choice = [
+                    'value' => $choiceValue,
+                    'label' => $choiceLabel,
+                ];
+                if ($choiceDescription) {
+                    $choice['description'] = $choiceDescription;
+                }
+                if (!empty($choiceModules)) {
+                    $choice['modules'] = $choiceModules;
+                }
+                $choices[] = $choice;
+
+                $choiceIndex++;
+
+                $moreChoices = $this->templateGenerator->askQuestion(
+                    '  Add another choice? (yes/no): ',
+                    'yes'
+                );
+                if (!in_array(strtolower($moreChoices), ['yes', 'y', '1', 'true'], true)) {
+                    break;
+                }
+            }
+
+            $optionDef = [
+                'key' => $key,
+                'label' => $label,
+                'type' => $type,
+                'required' => $required,
+                'options' => $choices,
+            ];
+
+            if ($defaultInput !== '') {
+                if ($type === 'multi-select') {
+                    $optionDef['default'] = array_map('trim', explode(',', $defaultInput));
+                } else {
+                    $optionDef['default'] = $defaultInput;
+                }
+            }
+
+            $options[] = $optionDef;
+            $optionIndex++;
+
+            $this->line('');
+            $moreOptions = $this->templateGenerator->askQuestion(
+                'Add another option? (yes/no): ',
+                'yes'
+            );
+            if (!in_array(strtolower($moreOptions), ['yes', 'y', '1', 'true'], true)) {
+                break;
+            }
+        }
+
+        return $options;
     }
 
     private function writeConfigFiles(string $dir): void
@@ -367,7 +567,7 @@ ENV;
         file_put_contents("{$dir}/env-example", $envContent);
     }
 
-    private function writeMetaFiles(string $dir): void
+    private function writeMetaFiles(string $dir, string $starterNameKebab, string $description): void
     {
         file_put_contents(
             "{$dir}/.forgeignore",
@@ -381,7 +581,7 @@ ENV;
 
         file_put_contents("{$dir}/app/.gitignore", "");
         file_put_contents("{$dir}/CHANGELOG.md", "# Changelog\n\nAll notable changes to this starter will be documented in this file.\n");
-        file_put_contents("{$dir}/README.md", "# {$this->name} Starter\n\n{$description}\n");
+        file_put_contents("{$dir}/README.md", "# {$starterNameKebab} Starter\n\n{$description}\n");
         file_put_contents("{$dir}/LICENSE", "MIT License\n");
         file_put_contents("{$dir}/LICENSE-MIT.txt", "MIT License\n");
     }

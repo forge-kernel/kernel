@@ -56,7 +56,7 @@ final class RegisterModuleProvides
                 if (FileExistenceCache::exists($file['path'])) {
                     try {
                         require_once $file['path'];
-                    } catch (\Exception $e) {
+                    } catch (\Throwable $e) {
                         continue;
                     }
                 }

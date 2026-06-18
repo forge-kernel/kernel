@@ -112,8 +112,13 @@ final class Autoloader
 
         // Fast path: check persistent class file map first
         if (isset(self::$classFileMap[$class])) {
-            self::requireFile(self::$classFileMap[$class], $class);
-            return;
+            $cachedFile = self::$classFileMap[$class];
+            if (file_exists($cachedFile)) {
+                self::requireFile($cachedFile, $class);
+                return;
+            }
+            // Stale cache entry — clean up
+            self::cleanupClassMapping($class);
         }
 
         // Use lowercase map for faster prefix matching
@@ -170,6 +175,11 @@ final class Autoloader
     private static function requireFile(string $realPath, string $class): void
     {
         if (class_exists($class, false) || interface_exists($class, false) || trait_exists($class, false)) {
+            return;
+        }
+
+        if (!file_exists($realPath)) {
+            self::cleanupClassMapping($class);
             return;
         }
 
@@ -238,6 +248,12 @@ final class Autoloader
 
         // Only cache application classes and frequently loaded classes
         return str_starts_with($class, 'App\\');
+    }
+
+    private static function cleanupClassMapping(string $class): void
+    {
+        unset(self::$classFileMap[$class]);
+        unset(self::$lowerClassMap[strtolower($class)]);
     }
 
     /**

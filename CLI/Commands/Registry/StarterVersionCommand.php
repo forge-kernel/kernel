@@ -95,8 +95,15 @@ final class StarterVersionCommand extends Command
             return 1;
         }
 
+        // Determine if using structured format (base/ + options) or flat
+        $actualSourceDir = $sourceDir;
+        $baseDir = $sourceDir . '/base';
+        if (is_dir($baseDir)) {
+            $actualSourceDir = $sourceDir;
+        }
+
         // Read forge.json from source for metadata
-        $forgeJsonPath = $sourceDir . '/forge.json';
+        $forgeJsonPath = (is_dir($baseDir) ? $baseDir : $sourceDir) . '/forge.json';
         $engineVersion = 'latest';
         $modules = [];
 
@@ -105,6 +112,16 @@ final class StarterVersionCommand extends Command
             if ($forgeConfig) {
                 $engineVersion = $forgeConfig['kernel']['version'] ?? 'latest';
                 $modules = $forgeConfig['modules'] ?? [];
+            }
+        }
+
+        // Read starter-config.json for configurable options (structured starters only)
+        $configOptions = null;
+        $configJsonPath = $sourceDir . '/starter-config.json';
+        if (file_exists($configJsonPath)) {
+            $configData = json_decode(file_get_contents($configJsonPath), true);
+            if (isset($configData['options']) && !empty($configData['options'])) {
+                $configOptions = $configData;
             }
         }
 
@@ -202,13 +219,19 @@ final class StarterVersionCommand extends Command
             ];
         }
 
-        $manifest[$starterNameKebab]['versions'][$this->version] = [
+        $versionEntry = [
             'url' => "{$starterNameKebab}/{$this->version}",
             'integrity' => $integrity,
             'kernel' => $engineVersion,
             'modules' => $modules,
             'post_install' => $postInstallCommands,
         ];
+
+        if ($configOptions !== null) {
+            $versionEntry['config'] = $configOptions;
+        }
+
+        $manifest[$starterNameKebab]['versions'][$this->version] = $versionEntry;
         $manifest[$starterNameKebab]['latest'] = $this->version;
 
         if (!$this->writeStarterManifest($manifestPath, $manifest)) {
