@@ -15,6 +15,7 @@ use Forge\Core\Helpers\ModuleHelper;
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Services\AttributeDiscoveryService;
+use Forge\Core\Services\ServiceRegistrationCache;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
 use ReflectionClass;
@@ -33,6 +34,13 @@ final class ServiceDiscoverSetup
      */
     public static function setup(Container $container): void
     {
+        $cache = ServiceRegistrationCache::load();
+        if ($cache !== null && ServiceRegistrationCache::isValid($cache)) {
+            ServiceRegistrationCache::restore($container, $cache);
+            ReflectionCacheService::saveCache();
+            return;
+        }
+
         if ($container->has(\App\Modules\ForgeEvents\Services\EventDispatcher::class)) {
             /** @var EventDispatcher $eventDispatcherService */
             $eventDispatcherService = $container->get(EventDispatcher::class);
@@ -68,6 +76,10 @@ final class ServiceDiscoverSetup
         $classNames = array_keys($classMap);
         ReflectionCacheService::preloadClassReflections($classNames);
 
+        $cacheServices = [];
+        $cacheEventListeners = [];
+        $cacheLifecycleHooks = [];
+
         foreach ($classMap as $className => $metadata) {
             if (!class_exists($className)) {
                 $filepath = $metadata['file'] ?? '';
@@ -88,19 +100,38 @@ final class ServiceDiscoverSetup
                 $reflectionClass = ReflectionCacheService::getClassReflection($className);
                 if (self::hasServiceAttribute($reflectionClass)) {
                     self::registerService($reflectionClass, $container);
+
+                    $serviceAttr = ReflectionCacheService::getClassAttributes($reflectionClass, Service::class);
+                    $discoverableAttr = ReflectionCacheService::getClassAttributes($reflectionClass, Discoverable::class);
+                    $attr = $serviceAttr[0] ?? $discoverableAttr[0] ?? null;
+                    if ($attr) {
+                        $inst = $attr->newInstance();
+                        $cacheServices[$inst->id ?? $reflectionClass->getName()] = [
+                            'class' => $reflectionClass->getName(),
+                            'singleton' => $inst->singleton,
+                        ];
+                    } else {
+                        $cacheServices[$reflectionClass->getName()] = [
+                            'class' => $reflectionClass->getName(),
+                            'singleton' => true,
+                        ];
+                    }
                 }
 
                 if ($eventDispatcherService) {
-                    self::registerEventListeners($reflectionClass, $eventDispatcherService, $container);
+                    self::registerEventListeners($reflectionClass, $eventDispatcherService, $container, $cacheEventListeners);
                 }
 
-                self::registerServiceLifecycleHooks($reflectionClass, $container);
+                self::registerServiceLifecycleHooks($reflectionClass, $container, $cacheLifecycleHooks);
             } catch (ReflectionException $e) {
 
             }
         }
         self::generateLegacyClassMapCache($classMap);
-        
+
+        $fullPaths = array_map(fn(string $p): string => BASE_PATH . '/' . ltrim($p, '/'), $basePaths);
+        ServiceRegistrationCache::buildAndSave($cacheServices, [], $cacheEventListeners, $cacheLifecycleHooks, $fullPaths);
+
         // Save reflection cache for next request
         ReflectionCacheService::saveCache();
     }
@@ -152,7 +183,7 @@ final class ServiceDiscoverSetup
      * @throws MissingServiceException
      * @throws ResolveParameterException
      */
-    private static function registerEventListeners(ReflectionClass $reflectionClass, EventDispatcher $eventDispatcher, Container $container): void
+    private static function registerEventListeners(ReflectionClass $reflectionClass, EventDispatcher $eventDispatcher, Container $container, ?array &$cacheCollector = null): void
     {
         $methods = ReflectionCacheService::getClassMethods($reflectionClass, ReflectionMethod::IS_PUBLIC);
         foreach ($methods as $method) {
@@ -166,6 +197,13 @@ final class ServiceDiscoverSetup
                     : $reflectionClass->newInstance();
 
                 $eventDispatcher->addListener($eventClass, [$listenerInstance, $method->getName()]);
+
+                if ($cacheCollector !== null) {
+                    $cacheCollector[$eventClass][] = [
+                        'class' => $reflectionClass->getName(),
+                        'method' => $method->getName(),
+                    ];
+                }
             }
         }
     }
@@ -177,7 +215,7 @@ final class ServiceDiscoverSetup
      * @throws MissingServiceException
      * @throws ResolveParameterException
      */
-    private static function registerServiceLifecycleHooks(ReflectionClass $reflectionClass, Container $container): void
+    private static function registerServiceLifecycleHooks(ReflectionClass $reflectionClass, Container $container, ?array &$cacheCollector = null): void
     {
         $hasModuleAttribute = !empty(ReflectionCacheService::getClassAttributes($reflectionClass, \Forge\Core\Module\Attributes\Module::class));
         if ($hasModuleAttribute) {
@@ -198,6 +236,13 @@ final class ServiceDiscoverSetup
 
                 $callback = [$serviceInstance, $methodName];
                 HookManager::addHook($hookName, $callback);
+
+                if ($cacheCollector !== null) {
+                    $cacheCollector[$hookName->value][] = [
+                        'class' => $reflectionClass->getName(),
+                        'method' => $methodName,
+                    ];
+                }
             }
         }
     }

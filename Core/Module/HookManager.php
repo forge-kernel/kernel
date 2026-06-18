@@ -11,6 +11,7 @@ final class HookManager
 {
     private static array $hooks = [];
     private static bool $compiledHooksLoaded = false;
+    private static ?array $compiledHookData = null;
     private static ?Container $container = null;
 
     public static function addHook(LifecycleHookName $hookName, callable|array $callback): void
@@ -43,6 +44,7 @@ final class HookManager
         }
 
         $name = $hookName->value;
+        self::resolveCompiledHooksFor($name);
 
         if (isset(self::$hooks[$name])) {
             foreach (self::$hooks[$name] as $callback) {
@@ -60,37 +62,73 @@ final class HookManager
     private static function loadCompiledHooks(): void
     {
         $compiledFile = BASE_PATH . '/storage/framework/cache/compiled_hooks.php';
-        $compileFileExists = FileExistenceCache::exists($compiledFile);
-        if ($compileFileExists) {
-            $compiledHooks = include $compiledFile;
+        if (FileExistenceCache::exists($compiledFile)) {
+            self::$compiledHookData = include $compiledFile;
+        }
+    }
 
-            foreach ($compiledHooks as $hookName => $hooks) {
-                foreach ($hooks as $hook) {
-                    if ($hook['type'] === 'method') {
-                        try {
-                            if (!method_exists($hook['class'], $hook['method'])) {
-                                self::invalidateCompiledHooks();
-                                return;
-                            }
+    private static function resolveCompiledHooksFor(string $hookName): void
+    {
+        if (self::$compiledHookData === null || !isset(self::$compiledHookData[$hookName])) {
+            return;
+        }
 
-                            if (self::$container && self::$container->has($hook['class'])) {
-                                $instance = self::$container->get($hook['class']);
-                            } elseif (self::$container) {
-                                $instance = self::$container->make($hook['class']);
-                            } else {
-                                $instance = new $hook['class']();
-                            }
+        foreach (self::$compiledHookData[$hookName] as $hook) {
+            if ($hook['type'] !== 'method') {
+                continue;
+            }
 
-                            $callback = [$instance, $hook['method']];
-                            $name = LifecycleHookName::from($hookName);
-                            self::addHook($name, $callback);
-                        } catch (\Throwable $e) {
-                            error_log("Failed to load compiled hook {$hook['class']}::{$hook['method']}: " . $e->getMessage());
-                        }
-                    }
+            if (self::isHookAlreadyRegistered($hookName, $hook['class'], $hook['method'])) {
+                continue;
+            }
+
+            try {
+                if (!method_exists($hook['class'], $hook['method'])) {
+                    self::invalidateCompiledHooks();
+                    return;
+                }
+
+                if (self::$container && self::$container->has($hook['class'])) {
+                    $instance = self::$container->get($hook['class']);
+                } elseif (self::$container) {
+                    $instance = self::$container->make($hook['class']);
+                } else {
+                    $instance = new $hook['class']();
+                }
+
+                $callback = [$instance, $hook['method']];
+                $name = LifecycleHookName::from($hookName);
+                self::addHook($name, $callback);
+            } catch (\Throwable $e) {
+                error_log("Failed to load compiled hook {$hook['class']}::{$hook['method']}: " . $e->getMessage());
+            }
+        }
+
+        unset(self::$compiledHookData[$hookName]);
+    }
+
+    private static function isHookAlreadyRegistered(string $hookName, string $class, string $method): bool
+    {
+        if (!isset(self::$hooks[$hookName])) {
+            return false;
+        }
+
+        foreach (self::$hooks[$hookName] as $cb) {
+            if (is_array($cb) && count($cb) === 2) {
+                $cbClass = is_object($cb[0]) ? get_class($cb[0]) : $cb[0];
+                if ($cbClass === $class && $cb[1] === $method) {
+                    return true;
                 }
             }
         }
+
+        return false;
+    }
+
+    public static function setCompiledHookData(array $data): void
+    {
+        self::$compiledHookData = $data;
+        self::$compiledHooksLoaded = true;
     }
 
     public static function setContainer(Container $container): void
@@ -104,6 +142,7 @@ final class HookManager
         if (file_exists($compiledFile)) {
             unlink($compiledFile);
         }
+        self::$compiledHookData = null;
         self::debugResetHooks();
     }
 
@@ -111,6 +150,7 @@ final class HookManager
     {
         self::$hooks = [];
         self::$compiledHooksLoaded = false;
+        self::$compiledHookData = null;
     }
 
     public static function debugGetHooks(): array

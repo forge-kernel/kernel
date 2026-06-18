@@ -14,6 +14,7 @@ use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ModuleAssetManager;
+use Forge\Core\Services\ServiceRegistrationCache;
 
 #[Cli(
   command: 'cache:warm',
@@ -49,6 +50,7 @@ $this->warmModuleRegistry();
         $this->warmRolePermissionCache();
         $this->warmModuleCommandCache();
         $this->warmHelperMap();
+        $this->warmServiceRegistrations();
 
     $this->info("Application caches warmed successfully.");
     return 0;
@@ -195,6 +197,26 @@ if (FileExistenceCache::exists($cacheFile)) {
             $this->success("Helper map cache warmed successfully.");
         } else {
             $this->warning("Helper map cache was not created (no helper files found).");
+        }
+    }
+
+    private function warmServiceRegistrations(): void
+    {
+        $this->info("Warming service registration cache...");
+
+        try {
+            ServiceRegistrationCache::clear();
+
+            \Forge\Core\Bootstrap\ServiceDiscoverSetup::setup($this->container);
+
+            $cacheFile = ServiceRegistrationCache::getCacheFilePath();
+            if (file_exists($cacheFile)) {
+                $this->success("Service registration cache warmed successfully.");
+            } else {
+                $this->warning("Service registration cache was not created.");
+            }
+        } catch (\Exception $e) {
+            $this->error("Failed to warm service registration cache: " . $e->getMessage());
         }
     }
 }

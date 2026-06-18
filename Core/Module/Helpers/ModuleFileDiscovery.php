@@ -116,6 +116,7 @@ final class ModuleFileDiscovery
                                 'name' => $className,
                                 'order' => $moduleInstance->order ?? 999,
                                 'path' => dirname($srcPath),
+                                'type' => $moduleInstance->type ?? 'module',
                             ];
                             self::$fileCache[$cacheKey] = $result;
                             return $result;

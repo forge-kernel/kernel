@@ -95,37 +95,40 @@ final class ModuleSetup
         return $container;
     }
 
-    /**
-     * @throws ReflectionException
-     */
     private static function loadCoreModules(Loader $moduleLoader): void
     {
         $moduleRegistry = $moduleLoader->getSortedModuleRegistry();
 
-        $classNames = array_column($moduleRegistry, "name");
-        ReflectionCacheService::preloadClassReflections($classNames);
+        $coreClassNames = [];
+        foreach ($moduleRegistry as $moduleInfo) {
+            $type = $moduleInfo["type"] ?? null;
+            if ($type === null) {
+                $reflectionClass = new \ReflectionClass($moduleInfo["name"]);
+                $attributes = $reflectionClass->getAttributes(Module::class);
+                $type = !empty($attributes) ? $attributes[0]->newInstance()->type : "module";
+            }
+            if ($type === "core") {
+                $coreClassNames[] = $moduleInfo["name"];
+            }
+        }
+
+        if (empty($coreClassNames)) {
+            return;
+        }
+
+        ReflectionCacheService::preloadClassReflections($coreClassNames);
 
         foreach ($moduleRegistry as $moduleInfo) {
-            $reflectionClass = ReflectionCacheService::getClassReflection(
-                $moduleInfo["name"],
-            );
-            $attributes = ReflectionCacheService::getClassAttributes(
-                $reflectionClass,
-                Module::class,
-            );
+            if (!in_array($moduleInfo["name"], $coreClassNames, true)) {
+                continue;
+            }
 
-            if (!empty($attributes)) {
-                $moduleInstance = $attributes[0]->newInstance();
-                if ($moduleInstance->type === "core") {
-                    $moduleName = basename($moduleInfo["path"]);
-                    // Skip disabled modules
-                    if ($moduleLoader->isModuleDisabled($moduleName)) {
-                        continue;
-                    }
-                    if (!$moduleLoader->isModuleLoaded($moduleInfo["name"])) {
-                        $moduleLoader->loadModuleByName($moduleInfo["name"]);
-                    }
-                }
+            $moduleName = basename($moduleInfo["path"]);
+            if ($moduleLoader->isModuleDisabled($moduleName)) {
+                continue;
+            }
+            if (!$moduleLoader->isModuleLoaded($moduleInfo["name"])) {
+                $moduleLoader->loadModuleByName($moduleInfo["name"]);
             }
         }
     }
@@ -215,9 +218,7 @@ final class ModuleSetup
 
         file_put_contents($compiledFile, $content);
 
-        if (FileExistenceCache::exists($compiledFile)) {
-            include $compiledFile;
-        }
+        HookManager::setCompiledHookData($compiledHooks);
     }
 
     private static function isHooksCacheStale(): bool

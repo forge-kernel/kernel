@@ -12,7 +12,6 @@ if ($requestUri !== '' && preg_match('/\.env$/i', $requestUri)) {
 
 use Forge\Core\Bootstrap\Bootstrap;
 use Forge\Core\Debug\Metrics;
-use Forge\Core\Helpers\FileExistenceCache;
 
 final class Engine
 {
@@ -20,12 +19,6 @@ final class Engine
     {
         Metrics::start('kernel_resolution');
         Bootstrap::getInstance();
-
-        $compiledFile = BASE_PATH . '/storage/framework/cache/compiled_hooks.php';
-        if (FileExistenceCache::exists($compiledFile)) {
-            include $compiledFile;
-        }
-
         Metrics::stop('kernel_resolution');
     }
 }
