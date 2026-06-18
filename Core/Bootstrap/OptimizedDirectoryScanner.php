@@ -14,11 +14,11 @@ use SplFileInfo;
 final class OptimizedDirectoryScanner
 {
     private const CACHE_FILE = BASE_PATH . '/storage/framework/cache/directory_structure.php';
-    private const CACHE_TTL = 300; // 5 minutes
 
     private static array $cache = [];
     private static ?int $cacheTime = null;
     private static bool $loaded = false;
+    private static ?array $cachedMtimes = null;
 
     /**
      * Get module directories efficiently with caching
@@ -160,7 +160,7 @@ final class OptimizedDirectoryScanner
     }
 
     /**
-     * Get cached data with TTL check
+     * Get cached data — validates by comparing directory mtimes, no TTL.
      */
     private static function getCachedData(string $key)
     {
@@ -168,12 +168,65 @@ final class OptimizedDirectoryScanner
             self::loadCache();
         }
 
-        // Check if cache is still valid
-        if (self::$cacheTime !== null && (time() - self::$cacheTime) > self::CACHE_TTL) {
+        if (self::$cachedMtimes === null || !self::areMtimesValid(self::$cachedMtimes)) {
+            self::$cache = [];
+            self::$cachedMtimes = null;
             return null;
         }
 
         return self::$cache[$key] ?? null;
+    }
+
+    /**
+     * Check that no monitored directories have changed since cache was built.
+     */
+    private static function areMtimesValid(array $cached): bool
+    {
+        foreach ($cached as $path => $expectedMtime) {
+            $current = @filemtime($path);
+            if ($current === false || $current !== $expectedMtime) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Collect mtimes for all directories the scanner depends on.
+     * @return array<string, int>
+     */
+    private static function collectDependentMtimes(): array
+    {
+        $mtimes = [];
+
+        $modulesPath = BASE_PATH . '/modules';
+        if (is_dir($modulesPath)) {
+            $modulesMtime = @filemtime($modulesPath);
+            if ($modulesMtime !== false) {
+                $mtimes[$modulesPath] = $modulesMtime;
+            }
+            foreach (scandir($modulesPath) as $entry) {
+                if ($entry === '.' || $entry === '..') continue;
+                $dir = $modulesPath . '/' . $entry;
+                if (is_dir($dir)) {
+                    $dirMtime = @filemtime($dir);
+                    if ($dirMtime !== false) {
+                        $mtimes[$dir] = $dirMtime;
+                    }
+                }
+            }
+        }
+
+        $appPath = BASE_PATH . '/app';
+        if (is_dir($appPath)) {
+            $appMtime = @filemtime($appPath);
+            if ($appMtime !== false) {
+                $mtimes[$appPath] = $appMtime;
+            }
+        }
+
+        ksort($mtimes);
+        return $mtimes;
     }
 
     /**
@@ -197,6 +250,7 @@ final class OptimizedDirectoryScanner
         if (!FileExistenceCache::exists(self::CACHE_FILE)) {
             self::$cache = [];
             self::$cacheTime = null;
+            self::$cachedMtimes = null;
             self::$loaded = true;
             return;
         }
@@ -206,6 +260,7 @@ final class OptimizedDirectoryScanner
             if (is_array($data)) {
                 self::$cache = $data['data'] ?? [];
                 self::$cacheTime = $data['time'] ?? null;
+                self::$cachedMtimes = $data['mtimes'] ?? null;
             }
         } catch (\Throwable $e) {
             // Cache corrupted, ignore
@@ -215,7 +270,7 @@ final class OptimizedDirectoryScanner
     }
 
     /**
-     * Save cache to disk
+     * Save cache to disk with current directory mtimes for validation.
      */
     private static function saveCache(): void
     {
@@ -224,9 +279,12 @@ final class OptimizedDirectoryScanner
             mkdir($directory, 0755, true);
         }
 
+        self::$cachedMtimes = self::collectDependentMtimes();
+
         $data = [
             'data' => self::$cache,
-            'time' => self::$cacheTime
+            'time' => self::$cacheTime,
+            'mtimes' => self::$cachedMtimes,
         ];
 
         $content = '<?php return ' . var_export($data, true) . ';';
@@ -240,6 +298,7 @@ final class OptimizedDirectoryScanner
     {
         self::$cache = [];
         self::$cacheTime = null;
+        self::$cachedMtimes = null;
 
         if (FileExistenceCache::exists(self::CACHE_FILE)) {
             @unlink(self::CACHE_FILE);
