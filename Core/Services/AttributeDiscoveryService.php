@@ -29,8 +29,14 @@ final class AttributeDiscoveryService
     public function discover(array $basePaths, array $attributeClasses): array
     {
         $cache = $this->loadCache();
+
+        if ($this->isCacheValid($cache, $basePaths)) {
+            return $cache['class_map'] ?? [];
+        }
+
         $newClassMap = [];
         $scannedFiles = [];
+        $scannedDirs = [];
 
         foreach ($basePaths as $basePath) {
             $fullPath = BASE_PATH . '/' . ltrim($basePath, '/');
@@ -38,7 +44,7 @@ final class AttributeDiscoveryService
                 continue;
             }
 
-            $this->scanDirectory($fullPath, $attributeClasses, $cache, $newClassMap, $scannedFiles);
+            $this->scanDirectory($fullPath, $attributeClasses, $cache, $newClassMap, $scannedFiles, $scannedDirs);
         }
 
         $this->cleanupStaleEntries($cache, $scannedFiles);
@@ -47,10 +53,42 @@ final class AttributeDiscoveryService
         $cache['class_map'] = $finalClassMap;
         $cache['metadata']['last_scan'] = time();
         $cache['metadata']['version'] = 1;
+        $cache['scanned_dirs'] = $scannedDirs;
 
         $this->saveCache($cache);
 
         return $finalClassMap;
+    }
+
+    /**
+     * Check if the cache is valid by comparing stored directory mtimes.
+     * If all directory mtimes match and all base paths still exist, skip scanning entirely.
+     */
+    private function isCacheValid(array $cache, array $basePaths): bool
+    {
+        $scannedDirs = $cache['scanned_dirs'] ?? [];
+        if (empty($scannedDirs) || empty($cache['class_map'] ?? [])) {
+            return false;
+        }
+
+        foreach ($basePaths as $basePath) {
+            $fullPath = BASE_PATH . '/' . ltrim($basePath, '/');
+            if (!is_dir($fullPath)) {
+                return false;
+            }
+        }
+
+        foreach ($scannedDirs as $dir => $cachedMtime) {
+            if (!is_dir($dir)) {
+                return false;
+            }
+            $currentMtime = @filemtime($dir);
+            if ($currentMtime === false || $currentMtime > $cachedMtime) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -74,20 +112,29 @@ final class AttributeDiscoveryService
     }
 
     /**
-     * Scan a directory recursively for classes with attributes
+     * Scan a directory recursively for classes with attributes.
+     * Also collects directory mtimes for cache validation.
      */
     private function scanDirectory(
         string $directory,
         array $attributeClasses,
         array &$cache,
         array &$newClassMap,
-        array &$scannedFiles
+        array &$scannedFiles,
+        array &$scannedDirs
     ): void {
+        $scannedDirs[$directory] = @filemtime($directory) ?: 0;
+
         try {
-            $directoryIterator = new RecursiveDirectoryIterator($directory);
-            $iterator = new RecursiveIteratorIterator($directoryIterator);
+            $directoryIterator = new RecursiveDirectoryIterator($directory, RecursiveDirectoryIterator::SKIP_DOTS);
+            $iterator = new RecursiveIteratorIterator($directoryIterator, RecursiveIteratorIterator::SELF_FIRST);
 
             foreach ($iterator as $file) {
+                if ($file->isDir()) {
+                    $scannedDirs[$file->getPathname()] = @filemtime($file->getPathname()) ?: 0;
+                    continue;
+                }
+
                 if (!$file->isFile() || $file->getExtension() !== 'php') {
                     continue;
                 }
@@ -285,6 +332,7 @@ final class AttributeDiscoveryService
         if (!file_exists(self::CACHE_FILE)) {
             return [
                 'class_map' => [],
+                'scanned_dirs' => [],
                 'metadata' => [
                     'last_scan' => 0,
                     'version' => 1,
@@ -303,6 +351,7 @@ final class AttributeDiscoveryService
 
         return [
             'class_map' => [],
+            'scanned_dirs' => [],
             'metadata' => [
                 'last_scan' => 0,
                 'version' => 1,
@@ -374,4 +423,3 @@ final class AttributeDiscoveryService
         return self::CACHE_FILE;
     }
 }
-

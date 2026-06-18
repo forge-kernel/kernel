@@ -76,6 +76,35 @@ class Metrics
         return self::$timers;
     }
 
+    /**
+     * Returns all timers, including in-progress ones with live duration/memory.
+     * Useful when called from inside a view that is being rendered.
+     */
+    public static function getLive(): array
+    {
+        if (!self::isEnabled()) {
+            return [];
+        }
+
+        $now = microtime(true);
+        $currentMem = memory_get_usage();
+        $result = [];
+
+        foreach (self::$timers as $key => $data) {
+            if (isset($data['duration'])) {
+                $result[$key] = $data;
+            } else {
+                $result[$key] = [
+                    'start' => $data['start'],
+                    'duration' => $now - $data['start'],
+                    'memory_used' => $currentMem - ($data['memory_start'] ?? $currentMem),
+                ];
+            }
+        }
+
+        return $result;
+    }
+
     public static function print(): void
     {
         if (!self::isEnabled()) {
