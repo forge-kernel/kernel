@@ -64,18 +64,21 @@ final class ModuleSetup
             $session->start();
         }
 
-        Metrics::start("module_discovery");
+        Metrics::start("module_setup_early_hooks");
         /*** @var Loader $moduleLoader */
         $moduleLoader = $container->get(Loader::class);
 
         $moduleLoader->discoverEarlyHooks();
+        Metrics::stop("module_setup_early_hooks");
 
+        Metrics::start("before_module_load_trigger");
         HookManager::triggerHook(LifecycleHookName::BEFORE_MODULE_LOAD);
+        Metrics::stop("before_module_load_trigger");
 
+        Metrics::start("module_loading");
         $moduleLoader->loadModules();
         self::loadCoreModules($moduleLoader);
-
-        Metrics::stop("module_discovery");
+        Metrics::stop("module_loading");
 
         if (
             !FileExistenceCache::exists(self::$compiledHooksFile) ||
@@ -84,7 +87,9 @@ final class ModuleSetup
             self::compileHooks();
         }
 
+        Metrics::start("after_module_load_trigger");
         HookManager::triggerHook(LifecycleHookName::AFTER_MODULE_LOAD);
+        Metrics::stop("after_module_load_trigger");
         self::$modulesLoaded = true;
 
         return $container;

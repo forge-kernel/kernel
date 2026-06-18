@@ -121,6 +121,22 @@ final class Loader
             return;
         }
 
+        if (!$this->isRegistryStale()) {
+            $this->registerAutoloadPathsFromRegistry();
+
+            if ($this->isCompiledHooksCacheValid()) {
+                $this->earlyHooksDiscovered = true;
+                return;
+            }
+
+            foreach ($this->moduleRegistry as $moduleInfo) {
+                $this->registerEarlyHooksForModule($moduleInfo);
+            }
+
+            $this->earlyHooksDiscovered = true;
+            return;
+        }
+
         $moduleDirectory = BASE_PATH . "/modules";
         $modules = ModuleFileDiscovery::discoverModulesInDirectory(
             $moduleDirectory,
@@ -133,6 +149,36 @@ final class Loader
         }
 
         $this->earlyHooksDiscovered = true;
+    }
+
+    private function isCompiledHooksCacheValid(): bool
+    {
+        $compiledFile = BASE_PATH . '/storage/framework/cache/compiled_hooks.php';
+        if (!FileExistenceCache::exists($compiledFile)) {
+            return false;
+        }
+        $cacheMtime = @filemtime($compiledFile);
+        if ($cacheMtime === false) {
+            return false;
+        }
+        $modulesPath = BASE_PATH . '/modules';
+        if (!is_dir($modulesPath)) {
+            return false;
+        }
+        foreach (scandir($modulesPath) as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $dir = $modulesPath . '/' . $entry;
+            if (!is_dir($dir)) {
+                continue;
+            }
+            $dirMtime = @filemtime($dir);
+            if ($dirMtime !== false && $dirMtime > $cacheMtime) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

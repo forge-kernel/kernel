@@ -65,11 +65,16 @@ final class ContainerAppSetup
     });
 
     $moduleLoader = $container->get(Loader::class);
+
+    Metrics::start("early_hooks_discovery");
     $moduleLoader->discoverEarlyHooks();
+    Metrics::stop("early_hooks_discovery");
 
     HookManager::setContainer($container);
 
+    Metrics::start("early_boot_trigger");
     HookManager::triggerHook(LifecycleHookName::EARLY_BOOT);
+    Metrics::stop("early_boot_trigger");
 
     ModuleSetup::loadModules($container);
 
