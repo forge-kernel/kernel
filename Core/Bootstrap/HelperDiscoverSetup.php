@@ -22,50 +22,69 @@ final class HelperDiscoverSetup
      */
     public static function setup(): void
     {
-        $helperFiles = [];
-
-        if (self::isProductionOrStaging()) {
-            $helperFiles = self::loadHelperMapCache();
-            if ($helperFiles) {
-                self::includeHelpersWithBase($helperFiles);
-                return;
-            }
+        $helperFiles = self::loadHelperMapCache();
+        if ($helperFiles !== null) {
+            self::includeHelpersWithBase($helperFiles);
+            return;
         }
 
-        $absoluteFiles = self::discoverHelperFiles();
+        [$absoluteFiles, $scannedDirs] = self::discoverHelperFiles();
 
         $relativeFiles = self::convertToRelativePaths($absoluteFiles);
-        self::generateHelperMapCache($relativeFiles);
+        self::generateHelperMapCache($relativeFiles, $scannedDirs);
         self::includeHelpers(array_values($absoluteFiles));
-    }
-
-    private static function isProductionOrStaging(): bool
-    {
-        return isset($_ENV['APP_ENV']) && in_array($_ENV['APP_ENV'], ['production', 'staging'], true);
     }
 
     /**
      * Loads the helper file paths from cache.
-     * @return array<string>|null Array of file paths relative to BASE_PATH, or null if cache not found or invalid.
+     * Validates stored directory mtimes — no recursive scanning needed.
+     * @return array<string>|null Array of file paths relative to BASE_PATH, or null if cache invalid.
      */
     private static function loadHelperMapCache(): ?array
     {
-        if (file_exists(self::HELPER_MAP_CACHE_FILE)) {
-            try {
-                $cachedData = include self::HELPER_MAP_CACHE_FILE;
-                if (is_array($cachedData)) {
-                    foreach ($cachedData as $path) {
-                        if (!file_exists(BASE_PATH . $path)) {
-                            return null;
-                        }
-                    }
-                    return $cachedData;
-                }
-            } catch (\Exception $e) {
-
-            }
+        if (!file_exists(self::HELPER_MAP_CACHE_FILE)) {
+            return null;
         }
-        return null;
+
+        try {
+            $cachedData = include self::HELPER_MAP_CACHE_FILE;
+            if (!is_array($cachedData)) {
+                return null;
+            }
+
+            $files = $cachedData['files'] ?? null;
+            $dirMtimes = $cachedData['dir_mtimes'] ?? [];
+
+            if ($files === null) {
+                return null;
+            }
+
+            foreach ($dirMtimes as $dir => $cachedMtime) {
+                if (!is_dir($dir)) {
+                    return null;
+                }
+                $currentMtime = @filemtime($dir);
+                if ($currentMtime === false || $currentMtime > $cachedMtime) {
+                    return null;
+                }
+            }
+
+            $absolutePaths = [];
+            foreach ($files as $relativePath) {
+                $absolutePaths[] = BASE_PATH . $relativePath;
+            }
+            FileExistenceCache::preload($absolutePaths);
+
+            foreach ($absolutePaths as $absolutePath) {
+                if (!FileExistenceCache::exists($absolutePath)) {
+                    return null;
+                }
+            }
+
+            return $files;
+        } catch (\Exception $e) {
+            return null;
+        }
     }
 
     /**
@@ -88,19 +107,20 @@ final class HelperDiscoverSetup
         }
     }
 
-
     /**
      * Scans the defined paths for all helper files.
-     * @return array<string> Array of absolute file paths.
+     * @return array{0: array<string>, 1: array<string, int>} [absolute file paths, directory mtimes]
      */
     private static function discoverHelperFiles(): array
     {
         $files = [];
+        $scannedDirs = [];
 
         foreach (self::HELPER_SEARCH_PATHS as $directory) {
             if (is_dir($directory)) {
                 if (str_ends_with($directory, '/Support')) {
                     $files = array_merge($files, self::scanDirectory($directory));
+                    $scannedDirs[$directory] = @filemtime($directory) ?: 0;
                     continue;
                 }
 
@@ -110,13 +130,16 @@ final class HelperDiscoverSetup
                         if ($item->isDir() && $item->getFilename() === 'Support') {
                             if (strpos($item->getPathname(), 'src/Support') !== false) {
                                 $files = array_merge($files, self::scanDirectory($item->getPathname()));
+                                $scannedDirs[$item->getPathname()] = @filemtime($item->getPathname()) ?: 0;
                             }
                         }
                     }
+                    $scannedDirs[$directory] = @filemtime($directory) ?: 0;
                 }
             }
         }
-        return array_unique($files);
+
+        return [array_unique($files), $scannedDirs];
     }
 
     /**
@@ -158,16 +181,22 @@ final class HelperDiscoverSetup
     }
 
     /**
-     * Generates and caches the helper map to a file.
+     * Generates and caches the helper map with directory mtimes for validation.
      * @param array<string> $helperFiles Array of file paths relative to BASE_PATH.
+     * @param array<string, int> $dirMtimes Map of directory path to mtime.
      */
-    private static function generateHelperMapCache(array $helperFiles): void
+    private static function generateHelperMapCache(array $helperFiles, array $dirMtimes): void
     {
         if (!is_dir(dirname(self::HELPER_MAP_CACHE_FILE))) {
             mkdir(dirname(self::HELPER_MAP_CACHE_FILE), 0777, true);
         }
 
-        $cacheContent = "<?php return " . var_export($helperFiles, true) . ";";
+        $cacheData = [
+            'files' => $helperFiles,
+            'dir_mtimes' => $dirMtimes,
+        ];
+
+        $cacheContent = "<?php return " . var_export($cacheData, true) . ";";
         file_put_contents(self::HELPER_MAP_CACHE_FILE, $cacheContent);
     }
 

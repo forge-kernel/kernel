@@ -12,6 +12,7 @@ use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\ModuleHelper;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
+use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Core\Structure\StructureResolver;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Traits\NamespaceHelper;
@@ -33,50 +34,56 @@ final class RegisterModuleCommand
   /**
    * @throws MissingServiceException
    */
-  private function registerModuleCommands(): void
-  {
-    $moduleNamespace = $this->reflectionClass->getNamespaceName();
-    $modulePath = dirname($this->reflectionClass->getFileName());
+    private function registerModuleCommands(): void
+    {
+        $moduleNamespace = $this->reflectionClass->getNamespaceName();
+        $modulePath = dirname($this->reflectionClass->getFileName());
 
-    $moduleName = $this->extractModuleName();
-    $structureResolver = $this->container->has(StructureResolver::class)
-      ? $this->container->get(StructureResolver::class)
-      : null;
+        $moduleName = $this->extractModuleName();
+        $structureResolver = $this->container->has(StructureResolver::class)
+            ? $this->container->get(StructureResolver::class)
+            : null;
 
-    $searchPath = $modulePath;
-    if ($moduleName && $structureResolver) {
-      try {
-        $moduleCommandsPath = $structureResolver->getModulePath($moduleName, 'commands');
-        $moduleBasePath = dirname($modulePath, 1);
-        $commandsPath = "$moduleBasePath/$moduleCommandsPath";
-        if (FileExistenceCache::isDir($commandsPath)) {
-          $searchPath = $commandsPath;
+        $searchPath = $modulePath;
+        if ($moduleName && $structureResolver) {
+            try {
+                $moduleCommandsPath = $structureResolver->getModulePath($moduleName, 'commands');
+                $moduleBasePath = dirname($modulePath, 1);
+                $commandsPath = "$moduleBasePath/$moduleCommandsPath";
+                if (FileExistenceCache::isDir($commandsPath)) {
+                    $searchPath = $commandsPath;
+                }
+            } catch (\InvalidArgumentException $e) {
+                // Use default modulePath
+            }
         }
-      } catch (\InvalidArgumentException $e) {
-        // Use default modulePath
-      }
-    }
 
-    $cliApplication = $this->container->get(Application::class);
-    $commandFiles = ModuleFileDiscovery::discoverCommandFilesInModule($searchPath, $moduleNamespace);
+        $cliApplication = $this->container->get(Application::class);
+        $commandFiles = ModuleFileDiscovery::discoverCommandFilesInModule($searchPath, $moduleNamespace);
 
-    foreach ($commandFiles as $file) {
-      $className = $file['className'];
-      if (class_exists($className) && is_subclass_of($className, Command::class)) {
-        $commandAttribute = ModuleFileDiscovery::getReflectionClass($className)->getAttributes(Cli::class)[0] ?? null;
-        if ($commandAttribute) {
-          $commandInstance = $commandAttribute->newInstance();
-          $commandName = $commandInstance->command;
+        $registeredCount = 0;
+        foreach ($commandFiles as $file) {
+            $className = $file['className'];
+            if (class_exists($className) && is_subclass_of($className, Command::class)) {
+                $commandAttribute = ModuleFileDiscovery::getReflectionClass($className)->getAttributes(Cli::class)[0] ?? null;
+                if ($commandAttribute) {
+                    $commandInstance = $commandAttribute->newInstance();
+                    $commandName = $commandInstance->command;
 
-          $hasCoreCommand = !empty(ModuleFileDiscovery::getReflectionClass($className)->getAttributes(CoreCommand::class));
-          $prefix = $hasCoreCommand ? '' : 'modules:';
-          $cliApplication->registerCommandClass($className, $prefix);
+                    $hasCoreCommand = !empty(ModuleFileDiscovery::getReflectionClass($className)->getAttributes(CoreCommand::class));
+                    $prefix = $hasCoreCommand ? '' : 'modules:';
+                    $cliApplication->registerCommandClass($className, $prefix);
+                    $registeredCount++;
+                }
+            } else {
+                error_log("Class " . $className . " is not a valid CLI Command.");
+            }
         }
-      } else {
-        error_log("Class " . $className . " is not a valid CLI Command.");
-      }
+
+        if ($registeredCount > 0 && $moduleName && $this->container->has(Loader::class)) {
+            $this->container->get(Loader::class)->recordModuleHasCommands($moduleName);
+        }
     }
-  }
 
   private function extractModuleName(): ?string
   {

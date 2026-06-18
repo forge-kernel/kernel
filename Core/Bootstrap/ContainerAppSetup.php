@@ -7,6 +7,7 @@ namespace Forge\Core\Bootstrap;
 use Forge\CLI\Application;
 use Forge\Core\Config\Config;
 use Forge\Core\DI\Container;
+use Forge\Core\Debug\Metrics;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\Core\Module\ModuleLoader\Loader;
@@ -38,10 +39,13 @@ final class ContainerAppSetup
    * @throws MissingServiceException
    * @throws ResolveParameterException
    */
-  public static function setup(): Container
+    public static function setup(): Container
   {
     $container = Container::getInstance();
+
+    Metrics::start("helper_discovery");
     HelperDiscoverSetup::setup();
+    Metrics::stop("helper_discovery");
 
     $container->singleton(Config::class, function () {
       return new Config(BASE_PATH . '/config');
@@ -68,11 +72,24 @@ final class ContainerAppSetup
     HookManager::triggerHook(LifecycleHookName::EARLY_BOOT);
 
     ModuleSetup::loadModules($container);
-    ErrorHandlerSetup::setup($container);
-    ServiceDiscoverSetup::setup($container);
-    AppCommandSetup::getInstance($container);
 
+    Metrics::start("error_handler_setup");
+    ErrorHandlerSetup::setup($container);
+    Metrics::stop("error_handler_setup");
+
+    Metrics::start("service_discovery");
+    ServiceDiscoverSetup::setup($container);
+    Metrics::stop("service_discovery");
+
+    if (PHP_SAPI === "cli") {
+      Metrics::start("app_command_setup");
+      AppCommandSetup::getInstance($container);
+      Metrics::stop("app_command_setup");
+    }
+
+    Metrics::start("app_booted_hook");
     HookManager::triggerHook(LifecycleHookName::APP_BOOTED);
+    Metrics::stop("app_booted_hook");
 
     // Mark bootstrap as complete to enable cache wrapping
     $container->finishBootstrap();

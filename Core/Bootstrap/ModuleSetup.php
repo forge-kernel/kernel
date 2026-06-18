@@ -34,7 +34,6 @@ final class ModuleSetup
     {
         /*** @var Loader $moduleLoader */
         $moduleLoader = $container->get(Loader::class);
-        $moduleLoader->loadModules();
 
         $moduleLoader->preloadCliModules();
     }
@@ -79,8 +78,8 @@ final class ModuleSetup
         Metrics::stop("module_discovery");
 
         if (
-            PHP_SAPI === "cli" ||
-            !FileExistenceCache::exists(self::$compiledHooksFile)
+            !FileExistenceCache::exists(self::$compiledHooksFile) ||
+            self::isHooksCacheStale()
         ) {
             self::compileHooks();
         }
@@ -214,5 +213,34 @@ final class ModuleSetup
         if (FileExistenceCache::exists($compiledFile)) {
             include $compiledFile;
         }
+    }
+
+    private static function isHooksCacheStale(): bool
+    {
+        $cacheMtime = @filemtime(self::$compiledHooksFile);
+        if ($cacheMtime === false) {
+            return true;
+        }
+
+        $modulesPath = BASE_PATH . "/modules";
+        if (!is_dir($modulesPath)) {
+            return false;
+        }
+
+        foreach (scandir($modulesPath) as $entry) {
+            if ($entry === "." || $entry === "..") {
+                continue;
+            }
+            $dir = $modulesPath . "/" . $entry;
+            if (!is_dir($dir)) {
+                continue;
+            }
+            $dirMtime = @filemtime($dir);
+            if ($dirMtime !== false && $dirMtime > $cacheMtime) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

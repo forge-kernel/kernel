@@ -159,18 +159,7 @@ final class Application
         $env = Environment::getInstance();
         $envValue = $env->get("FORGE_DEVELOPER_MODE");
 
-        if ($envValue === "true" || $envValue === true || $envValue === "1") {
-            return true;
-        }
-
-        $configPath = BASE_PATH . "/config/app.php";
-        $configPathExist = FileExistenceCache::exists($configPath);
-        if ($configPathExist) {
-            $config = require $configPath;
-            return ($config["developer_mode"] ?? false) === true;
-        }
-
-        return false;
+        return $envValue === "true" || $envValue === true || $envValue === "1";
     }
 
     /**

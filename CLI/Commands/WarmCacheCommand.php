@@ -11,6 +11,7 @@ use Forge\Core\Bootstrap\ModuleSetup;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleLoader\Loader;
+use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ModuleAssetManager;
 
@@ -46,6 +47,8 @@ $this->warmModuleRegistry();
         $this->warmModuleAssets();
         $this->warmAttributeDiscovery();
         $this->warmRolePermissionCache();
+        $this->warmModuleCommandCache();
+        $this->warmHelperMap();
 
     $this->info("Application caches warmed successfully.");
     return 0;
@@ -144,6 +147,54 @@ if (FileExistenceCache::exists($cacheFile)) {
             $this->success("Role/Permission cache warmed successfully.");
         } catch (\Exception $e) {
             $this->error("Failed to warm role/permission cache: " . $e->getMessage());
+        }
+    }
+
+    private function warmModuleCommandCache(): void
+    {
+        $this->info("Warming module command cache...");
+
+        try {
+            ModuleCommandCache::clear();
+
+            $moduleLoader = $this->container->get(Loader::class);
+            $moduleLoader->loadModules();
+
+            $sortedRegistry = $moduleLoader->getSortedModuleRegistry();
+            foreach ($sortedRegistry as $moduleInfo) {
+                $moduleName = basename($moduleInfo["path"]);
+                if (!$moduleLoader->isModuleDisabled($moduleName)) {
+                    $moduleLoader->loadModuleByName($moduleInfo["name"]);
+                }
+            }
+
+            $modulesWithCommands = $moduleLoader->getModulesWithCommands();
+            if (!empty($modulesWithCommands)) {
+                ModuleCommandCache::buildAndSave($modulesWithCommands);
+                $this->success("Module command cache warmed successfully (" . count($modulesWithCommands) . " modules with commands).");
+            } else {
+                $this->warning("No modules with commands found.");
+            }
+        } catch (\Exception $e) {
+            $this->error("Failed to warm module command cache: " . $e->getMessage());
+        }
+    }
+
+    private function warmHelperMap(): void
+    {
+        $this->info("Warming helper map cache...");
+
+        $cacheFile = BASE_PATH . '/storage/framework/cache/helper-map.php';
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
+
+        \Forge\Core\Bootstrap\HelperDiscoverSetup::setup();
+
+        if (file_exists($cacheFile)) {
+            $this->success("Helper map cache warmed successfully.");
+        } else {
+            $this->warning("Helper map cache was not created (no helper files found).");
         }
     }
 }

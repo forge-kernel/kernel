@@ -15,6 +15,7 @@ use Forge\Core\Module\Attributes\Module;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
+use Forge\Core\Module\ModuleCommandCache;
 use Forge\Traits\ModuleHelper;
 use Forge\Traits\NamespaceHelper;
 use ReflectionClass;
@@ -34,6 +35,7 @@ final class Loader
         BASE_PATH . "/storage/framework/cache/module_registry.php";
     private array $earlyHooksRegistered = [];
     private bool $earlyHooksDiscovered = false;
+    private array $modulesWithCommands = [];
 
     /***
      * @var Application $cliApplication
@@ -249,6 +251,12 @@ final class Loader
     public function loadModules(): void
     {
         $moduleDirectory = BASE_PATH . "/modules";
+
+        if (!$this->isRegistryStale()) {
+            $this->registerAutoloadPathsFromRegistry();
+            return;
+        }
+
         $modules = ModuleFileDiscovery::discoverModulesInDirectory(
             $moduleDirectory,
         );
@@ -279,13 +287,77 @@ final class Loader
         }
     }
 
+    private function isRegistryStale(): bool
+    {
+        if (empty($this->moduleRegistry)) {
+            return true;
+        }
+
+        $moduleDirectory = BASE_PATH . "/modules";
+        if (!is_dir($moduleDirectory)) {
+            return true;
+        }
+
+        $knownModules = [];
+        foreach ($this->moduleRegistry as $moduleInfo) {
+            $dirName = basename($moduleInfo["path"]);
+            $knownModules[$dirName] = $moduleInfo["path"];
+        }
+
+        foreach (scandir($moduleDirectory) as $entry) {
+            if ($entry === "." || $entry === "..") {
+                continue;
+            }
+            $dir = $moduleDirectory . "/" . $entry;
+            if (!is_dir($dir)) {
+                continue;
+            }
+            if (!isset($knownModules[$entry])) {
+                return true;
+            }
+            if (!is_dir($knownModules[$entry])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function registerAutoloadPathsFromRegistry(): void
+    {
+        foreach ($this->moduleRegistry as $moduleInfo) {
+            $directoryName = basename($moduleInfo["path"]);
+            $this->registerModuleAutoloadPath($directoryName, $moduleInfo["path"]);
+        }
+    }
+
     public function preloadCliModules(): void
     {
+        $cachedModules = ModuleCommandCache::getModulesWithCommands();
+
+        if (!empty($cachedModules) && ModuleCommandCache::isValid()) {
+            foreach ($this->getSortedModuleRegistry() as $moduleInfo) {
+                $moduleName = basename($moduleInfo["path"]);
+                if (
+                    in_array($moduleName, $cachedModules, true) &&
+                    !$this->isModuleDisabled($moduleName)
+                ) {
+                    $this->loadModuleByName($moduleInfo["name"]);
+                }
+            }
+            return;
+        }
+
+        $hasCommands = false;
         foreach ($this->getSortedModuleRegistry() as $moduleInfo) {
             $moduleName = basename($moduleInfo["path"]);
             if (!$this->isModuleDisabled($moduleName)) {
                 $this->loadModuleByName($moduleInfo["name"]);
             }
+        }
+
+        if (!empty($this->modulesWithCommands)) {
+            ModuleCommandCache::buildAndSave($this->modulesWithCommands);
         }
     }
 
@@ -443,6 +515,18 @@ final class Loader
     public function isModuleLoaded(string $moduleClassName): bool
     {
         return isset($this->modules[$moduleClassName]);
+    }
+
+    public function recordModuleHasCommands(string $moduleName): void
+    {
+        if (!in_array($moduleName, $this->modulesWithCommands, true)) {
+            $this->modulesWithCommands[] = $moduleName;
+        }
+    }
+
+    public function getModulesWithCommands(): array
+    {
+        return $this->modulesWithCommands;
     }
 
     public function getModules(): array

@@ -11,6 +11,7 @@ use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Autoloader;
+use Forge\Core\Module\ModuleCommandCache;
 
 #[Cli(
     command: 'cache:flush',
@@ -44,6 +45,7 @@ final class FlushCacheCommand extends Command
         $this->clearViewCache();
         $this->clearGeneralCache();
         $this->clearRolePermissionCache();
+        $this->clearModuleCommandCache();
         $this->resetModuleRegistry();
 
         // Re-enable cache saving after flush completes
@@ -170,5 +172,12 @@ final class FlushCacheCommand extends Command
         file_put_contents(self::MODULE_REGISTRY_FILE, $content)
             ? $this->success("Module registry reset successfully.")
             : $this->error("Failed to reset module registry.");
+    }
+
+    private function clearModuleCommandCache(): void
+    {
+        ModuleCommandCache::clear()
+            ? $this->success("Module command cache cleared successfully.")
+            : $this->warning("Module command cache file does not exist.");
     }
 }

@@ -94,22 +94,37 @@ final class AppCommandSetup
                 continue;
             }
 
-            $before = get_declared_classes();
-            include_once $file->getRealPath();
-            $after = get_declared_classes();
+            $filePath = $file->getRealPath();
+            $className = $this->extractClassNameFromFile($filePath);
 
-            $newClasses = array_diff($after, $before);
-
-            foreach ($newClasses as $className) {
-                if (!str_starts_with($className, $appNamespace)) {
-                    continue;
-                }
-
-                if (is_subclass_of($className, Command::class)) {
-                    $this->classMap[$className] = $file->getRealPath();
-                }
+            if ($className === null) {
+                continue;
             }
+
+            if (!str_starts_with($className, $appNamespace)) {
+                continue;
+            }
+
+            $this->classMap[$className] = $filePath;
         }
+    }
+
+    private function extractClassNameFromFile(string $filePath): ?string
+    {
+        $contents = @file_get_contents($filePath);
+        if ($contents === false) {
+            return null;
+        }
+
+        if (!preg_match('/namespace\s+([^;]+);/', $contents, $namespaceMatch)) {
+            return null;
+        }
+
+        if (!preg_match('/(?:class|enum|trait|interface)\s+(\w+)/', $contents, $classMatch)) {
+            return null;
+        }
+
+        return trim($namespaceMatch[1]) . '\\' . $classMatch[1];
     }
 
     private function saveClassMap(): void
