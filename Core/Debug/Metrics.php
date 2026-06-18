@@ -9,13 +9,18 @@ use Forge\Core\Config\EnvParser;
 class Metrics
 {
     private static array $timers = [];
+    private static ?bool $enabled = null;
 
     public static function isEnabled(): bool
     {
-      $envPath = BASE_PATH . "/.env";
+        if (self::$enabled !== null) {
+            return self::$enabled;
+        }
 
-      EnvParser::load($envPath);
-      return (bool) $_ENV['APP_METRICS_ENABLED'] ?? false;
+        $envPath = BASE_PATH . "/.env";
+        EnvParser::load($envPath);
+        self::$enabled = (bool) ($_ENV['APP_METRICS_ENABLED'] ?? false);
+        return self::$enabled;
     }
 
     public static function start(string $key): void
