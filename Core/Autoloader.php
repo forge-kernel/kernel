@@ -89,6 +89,12 @@ final class Autoloader
         return self::$map;
     }
 
+    public static function removePath(string $namespace): void
+    {
+        $ns = strtolower(trim($namespace, '\\'));
+        unset(self::$map[$ns]);
+    }
+
     /**
      * Check if a file is currently being loaded by the autoloader.
      * This can be used to prevent manual requires that might conflict with autoloader.

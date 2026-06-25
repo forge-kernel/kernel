@@ -65,6 +65,19 @@ trait NamespaceHelper
       }
 
       if ($token[0] === T_CLASS && !$classFound) {
+        $prevIndex = $index - 1;
+        while ($prevIndex >= 0) {
+          $prev = $tokens[$prevIndex];
+          if (is_array($prev) && in_array($prev[0], [T_WHITESPACE, T_COMMENT, T_DOC_COMMENT], true)) {
+            $prevIndex--;
+            continue;
+          }
+          break;
+        }
+        if ($prevIndex >= 0 && is_array($tokens[$prevIndex]) && $tokens[$prevIndex][0] === T_DOUBLE_COLON) {
+          continue;
+        }
+
         for ($i = $index + 1; $i < count($tokens); $i++) {
           if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
             $class = $tokens[$i][1];

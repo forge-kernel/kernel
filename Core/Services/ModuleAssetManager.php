@@ -27,8 +27,11 @@ final class ModuleAssetManager
         $cachePath = BASE_PATH . '/storage/framework/cache/' . self::CACHE_FILE;
 
         if (FileExistenceCache::exists($cachePath) && !self::shouldRefreshCache()) {
-            self::$manifest = unserialize(file_get_contents($cachePath));
-            return;
+            $cached = file_get_contents($cachePath);
+            if ($cached !== false) {
+                self::$manifest = unserialize($cached);
+                return;
+            }
         }
 
         self::scanModules();
