@@ -12,6 +12,7 @@ use Forge\Exceptions\ResolveParameterException;
 use Forge\Core\Bootstrap\HelperDiscoverSetup;
 use Forge\Core\Bootstrap\ModuleSetup;
 use Forge\Core\Bootstrap\ServiceDiscoverSetup;
+use Forge\Core\Bootstrap\SessionSetup;
 use Forge\Core\Bootstrap\AppCommandSetup;
 use ReflectionException;
 
@@ -32,6 +33,7 @@ final class ContainerCLISetup
 
         $container = Container::getInstance();
         HelperDiscoverSetup::setup();
+        SessionSetup::setup($container);
 
         $container->singleton(Application::class, function () use ($container) {
             return Application::getInstance($container);

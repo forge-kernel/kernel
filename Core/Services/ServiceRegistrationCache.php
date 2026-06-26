@@ -15,11 +15,11 @@ final class ServiceRegistrationCache
 
     public static function load(): ?array
     {
-        if (!FileExistenceCache::exists(self::CACHE_FILE)) {
+        if (!is_file(self::CACHE_FILE)) {
             return null;
         }
         try {
-            $data = include self::CACHE_FILE;
+            $data = @include self::CACHE_FILE;
             if (!is_array($data)) {
                 return null;
             }

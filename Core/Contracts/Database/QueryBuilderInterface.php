@@ -38,6 +38,10 @@ interface QueryBuilderInterface
 
     public function insert(array $data): int;
 
+    public function insertGetId(array $data): int;
+
+    public function insertMany(array $rows): int;
+
     public function update(array $data): int;
 
     public function delete(): int;
@@ -102,7 +106,7 @@ interface QueryBuilderInterface
 
     public function max(string $column): float;
 
-    public function table(?string $name): string|self;
+    public function table(?string $name): self;
 
     public function createTable(
         string $tableName,

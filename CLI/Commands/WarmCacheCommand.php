@@ -9,6 +9,7 @@ use Forge\CLI\Command;
 use Forge\CLI\Traits\OutputHelper;
 use App\Modules\ForgeRouter\Events\RouterHookManager;
 use Forge\Core\Bootstrap\ModuleSetup;
+use Forge\Core\Contracts\Cache\CacheWarmerInterface;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleLoader\Loader;
@@ -46,10 +47,10 @@ final class WarmCacheCommand extends Command
 
         $this->warmModuleRegistry();
         $this->warmCompiledHooks();
-        $this->warmModuleAssets();
-        $this->warmAttributeDiscovery();
-        $this->warmRolePermissionCache();
-        $this->warmModuleCommandCache();
+    $this->warmModuleAssets();
+    $this->warmAttributeDiscovery();
+    $this->warmModuleCaches();
+    $this->warmModuleCommandCache();
         $this->warmHelperMap();
         $this->warmServiceRegistrations();
 
@@ -156,19 +157,28 @@ final class WarmCacheCommand extends Command
         }
     }
 
-    private function warmRolePermissionCache(): void
-    {
-        $this->info("Warming role/permission cache...");
+  private function warmModuleCaches(): void
+  {
+    $this->info("Warming module caches...");
 
-        try {
-            $container = new \Forge\Core\DI\Container();
-            $cacheService = $container->get(\App\Modules\ForgeAuth\Services\RolePermissionCacheService::class);
-            $cacheService->warmCache();
-            $this->success("Role/Permission cache warmed successfully.");
-        } catch (\Exception $e) {
-            $this->error("Failed to warm role/permission cache: " . $e->getMessage());
-        }
+    try {
+      $warmers = $this->container->getAll(CacheWarmerInterface::class);
+
+      if (empty($warmers)) {
+        $this->warning("No module cache warmers found.");
+        return;
+      }
+
+      foreach ($warmers as $warmer) {
+        $warmer->warmCache();
+      }
+
+      $this->success("Module caches warmed successfully (" . count($warmers) . " warmer(s)).");
+    } catch (\Exception $e) {
+      $this->error("Failed to warm module caches: " . $e->getMessage());
     }
+  }
+
 
     private function warmModuleCommandCache(): void
     {

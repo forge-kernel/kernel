@@ -470,7 +470,7 @@ class HelpCommand extends Command
                     'Exposing Actions to the Browser',
                     '  • Add #[Action] attribute above methods you want accessible',
                     '  • These methods must be public',
-                    '  • Use ReactiveControllerHelper trait for flash(), redirect(), dispatch()',
+                    '  • Use WithWireResponse trait for flash(), redirect(), dispatch()',
                     '',
                     'Two-Way Data Binding',
                     '  • Add #[State] attribute to properties you want to bind',
