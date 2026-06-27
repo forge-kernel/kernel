@@ -6,6 +6,7 @@ namespace Forge\CLI\Commands;
 
 use Forge\CLI\Attributes\Arg;
 use Forge\CLI\Attributes\Cli;
+use Forge\CLI\Attributes\Command as CommandAttr;
 use Forge\CLI\Command;
 use Forge\Core\Config\Config;
 use Forge\Core\Config\Environment;
@@ -111,7 +112,7 @@ class HelpCommand extends Command
                 continue;
 
             $reflectionClass = new ReflectionClass($commandClass);
-            $cliAttrs = $reflectionClass->getAttributes(Cli::class);
+            $cliAttrs = $reflectionClass->getAttributes(CommandAttr::class) ?: $reflectionClass->getAttributes(Cli::class);
             $cli = count($cliAttrs) ? $cliAttrs[0]->newInstance() : null;
             if (!$cli)
                 continue;
@@ -346,7 +347,7 @@ class HelpCommand extends Command
                     "  <?php layout('main') ?>",
                     '',
                     'Module Scope',
-                    "  <?php layout('admin', fromModule: true, moduleName: 'ForgeNexus') ?>",
+                    "  <?php layout('admin', fromModule: true, moduleName: 'MyModule') ?>",
                     '',
                     'The layout receives a $content variable containing the rendered view.',
                 ],
@@ -359,12 +360,12 @@ class HelpCommand extends Command
                     '  public function index(Request $request): Response',
                     '',
                     'Applying Middleware',
-                    '  Class level: #[Middleware("web")]',
-                    '  Method level: #[Middleware("\\App\\Modules\\ForgeAuth\\Middlewares\\AuthMiddleware")]',
-                    '  Multiple: Use multiple #[Middleware] attributes',
+                    '  Class level: #[UseMiddleware("web")]',
+                    '  Method level: #[UseMiddleware("\\App\\Modules\\ModuleName\\Middlewares\\AuthMiddleware")]',
+                    '  Multiple: Use multiple #[UseMiddleware] attributes',
                     '',
                     'Rendering Views',
-                    '  return $this->view("pages/name", $data);',
+                    '  return $this->view("name", $data);',
                     '',
                     'Dependency Injection',
                     '  public function __construct(private readonly Service $service) {}',
@@ -374,11 +375,11 @@ class HelpCommand extends Command
                 'title' => 'Middleware Usage Tips',
                 'messages' => [
                     'Auto-Registration',
-                    '  #[RegisterMiddleware(group: "web", order: 1)]',
+                    '  #[Middleware(group: "web", order: 1)]',
                     '',
                     'Applying to Controllers',
-                    '  Group: #[Middleware("web")]',
-                    '  Class: #[Middleware("\\App\\Modules\\Module\\Middlewares\\Middleware")]',
+                    '  Group: #[UseMiddleware("web")]',
+                    '  Class: #[UseMiddleware("\\App\\Modules\\Module\\Middlewares\\Middleware")]',
                     '  (No ::class needed)',
                     '',
                     'Register in config/middleware.php',
@@ -434,7 +435,7 @@ class HelpCommand extends Command
                     '  $dto = new UserDTO(name: "John", email: "john@example.com");',
                     '',
                     'Passing to Views/Components',
-                    '  return $this->view("pages/user", $dto);',
+                    '  return $this->view("user", $dto);',
                     '',
                     'Automatic Property Extraction',
                     '  DTO properties are automatically extracted as variables',
@@ -458,30 +459,6 @@ class HelpCommand extends Command
                     '',
                     'Using in DatabaseSeeder',
                     '  $this->call(SeederName::class);',
-                ],
-            ],
-            'forgewire:island' => [
-                'title' => 'ForgeWire Island Usage Tips',
-                'messages' => [
-                    'Making Your Controller Reactive',
-                    '  • Add #[Reactive] attribute to your controller class',
-                    '  • The island view alone is not reactive without this',
-                    '',
-                    'Exposing Actions to the Browser',
-                    '  • Add #[Action] attribute above methods you want accessible',
-                    '  • These methods must be public',
-                    '  • Use WithWireResponse trait for flash(), redirect(), dispatch()',
-                    '',
-                    'Two-Way Data Binding',
-                    '  • Add #[State] attribute to properties you want to bind',
-                    '  • Properties must be public',
-                    '  • Changes sync automatically between browser and server',
-                    '',
-                    'Understanding Visibility',
-                    '  • Public = accessible by other classes (not automatically exposed)',
-                    '  • Private = accessible only within the current class',
-                    '  • You still need to pass data to views explicitly',
-                    '  • Only #[Action] methods are exposed to the browser',
                 ],
             ],
             default => [],
@@ -523,7 +500,7 @@ class HelpCommand extends Command
                 continue;
 
             $reflectionClass = new ReflectionClass($commandClass);
-            $cliAttrs = $reflectionClass->getAttributes(Cli::class);
+            $cliAttrs = $reflectionClass->getAttributes(CommandAttr::class) ?: $reflectionClass->getAttributes(Cli::class);
             $cli = count($cliAttrs) ? $cliAttrs[0]->newInstance() : null;
             if (!$cli)
                 continue;
@@ -592,7 +569,7 @@ class HelpCommand extends Command
                 continue;
 
             $reflectionClass = new ReflectionClass($commandClass);
-            $cliAttrs = $reflectionClass->getAttributes(Cli::class);
+            $cliAttrs = $reflectionClass->getAttributes(CommandAttr::class) ?: $reflectionClass->getAttributes(Cli::class);
             $cli = count($cliAttrs) ? $cliAttrs[0]->newInstance() : null;
             if (!$cli)
                 continue;

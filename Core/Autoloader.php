@@ -13,8 +13,8 @@ final class Autoloader
     /** @var array<string,string>  namespace prefix → base directory (normalised, no trailing slash) */
     private static array $map = [];
 
-    /** @var bool  set to true once App\Modules\ForgeTesting\TestCase is loaded */
-    private static bool $testCaseLoaded = false;
+    /** @var bool  set to true once test loading is allowed (avoids premature *Test autoloading) */
+    private static bool $allowTestLoading = false;
 
     /** @var SplFileInfo[]  fast file-existence cache (APCu in web, array in CLI) */
     private static array $cache = [];
@@ -61,6 +61,16 @@ final class Autoloader
     public static function enableCacheSaving(): void
     {
         self::$cacheSavingEnabled = true;
+    }
+
+    /**
+     * Allow autoloading of *Test classes (called by test runner).
+     * Test classes are blocked by default to prevent accidental loading
+     * during normal HTTP requests.
+     */
+    public static function allowTestLoading(): void
+    {
+        self::$allowTestLoading = true;
     }
 
     private static function buildMap(): void
@@ -112,7 +122,7 @@ final class Autoloader
     {
         $class = ltrim($class, '\\');
 
-        if (!self::$testCaseLoaded && str_ends_with($class, 'Test')) {
+        if (!self::$allowTestLoading && str_ends_with($class, 'Test')) {
             return;
         }
 
@@ -172,7 +182,7 @@ final class Autoloader
             }
         }
 
-        if (!str_ends_with($class, 'Test') || self::$testCaseLoaded) {
+        if (!str_ends_with($class, 'Test') || self::$allowTestLoading) {
             throw new ClassNotFoundException($class);
         }
     }
@@ -196,12 +206,7 @@ final class Autoloader
         self::$loadingFiles[$realPath] = true;
 
         try {
-            /** @psalm-suppress UnresolvableInclude */
             require_once $realPath;
-
-            if ($class === 'App\\Modules\\ForgeTesting\\TestCase') {
-                self::$testCaseLoaded = true;
-            }
         } finally {
             // Remove from loading tracking after require completes
             unset(self::$loadingFiles[$realPath]);
@@ -370,7 +375,7 @@ final class Autoloader
             'lower_class_map_size' => count(self::$lowerClassMap),
             'max_cache_size' => self::$maxCacheSize,
             'cache_hit_ratio' => self::calculateCacheHitRatio(),
-            'test_case_loaded' => self::$testCaseLoaded,
+            'allow_test_loading' => self::$allowTestLoading,
         ];
     }
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Core\Cache;
 
-use App\Modules\ForgeSqlOrm\ORM\Model;
 use Forge\Core\Cache\Drivers\FileCacheDriver;
 use Forge\Core\Cache\Drivers\MemoryCacheDriver;
 use Forge\Core\Cache\Drivers\SqliteCacheDriver;
@@ -84,10 +83,7 @@ class CacheManager
         $class = null;
         $data = $value;
 
-        if ($value instanceof Model) {
-            $class = get_class($value);
-            $data = $value->toArray();
-        } elseif ($value instanceof \App\Modules\ForgeSqlOrm\ORM\Paginator) {
+        if (is_object($value) && method_exists($value, 'toArray')) {
             $class = get_class($value);
             $data = $value->toArray();
         } else {

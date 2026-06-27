@@ -8,7 +8,7 @@ use App\Modules\ForgeTesting\Attributes\Group;
 use App\Modules\ForgeTesting\Attributes\Test;
 use App\Modules\ForgeTesting\TestCase;
 use App\Modules\ForgeRouter\Http\Request;
-use Forge\Traits\PaginationHelper;
+use App\Modules\ForgeRouter\Traits\PaginationHelper;
 
 #[Group('helpers')]
 final class PaginationHelperTest extends TestCase

@@ -186,17 +186,17 @@ trait CliGenerator
                 'migration' => 'Database/Migrations',
                 'seeder' => 'Database/Seeders',
                 'model' => 'Models',
-                'view' => 'resources/views',
+                'view' => 'UI/views',
                 'command' => 'Commands',
                 'service' => 'Services',
                 'enum' => 'Enums',
                 'trait' => 'Traits',
                 'test' => 'tests',
-                'component' => 'resources/components',
-                'component-view' => 'resources/views/components',
-                'component-dto' => 'resources/views/components',
-                'component-view-only' => 'resources/components',
-                'layout' => 'resources/views/layouts',
+                'component' => 'UI/views/components',
+                'component-view' => 'UI/views/components',
+                'component-dto' => 'UI/views/components',
+                'component-view-only' => 'UI/views/components',
+                'layout' => 'UI/views/layouts',
                 'dto' => 'Dto',
             ];
 
@@ -412,13 +412,13 @@ trait CliGenerator
                 }
             } catch (\InvalidArgumentException $e) {
                 $baseDir = $this->type === 'app'
-                    ? BASE_PATH . "/app/resources/views/pages"
-                    : BASE_PATH . "/modules/{$this->module}/src/resources/views/pages";
+                    ? BASE_PATH . "/app/UI/views/pages"
+                    : BASE_PATH . "/modules/{$this->module}/src/UI/views/pages";
             }
         } else {
             $baseDir = $this->type === 'app'
-                ? BASE_PATH . "/app/resources/views/pages"
-                : BASE_PATH . "/modules/{$this->module}/src/resources/views/pages";
+                ? BASE_PATH . "/app/UI/views/pages"
+                : BASE_PATH . "/modules/{$this->module}/src/UI/views/pages";
         }
 
         if ($subPath !== '') {
@@ -438,17 +438,17 @@ trait CliGenerator
             'migration' => ['Database/Migrations', ''],
             'seeder' => ['Database/Seeders', ''],
             'model' => ['Models', ''],
-            'view' => ['resources/views/pages', ''],
+            'view' => ['UI/views/pages', ''],
             'command' => ['Commands', ''],
             'service' => ['Services', ''],
             'enum' => ['Enums', ''],
             'trait' => ['Traits', ''],
             'test' => ['tests', ''],
-            'component' => ['resources/views/components', ''],
-            'component-view' => ['resources/views/components', ''],
-            'component-dto' => ['resources/views/components', ''],
-            'component-view-only' => ['resources/components', ''],
-            'layout' => ['resources/views/layouts', ''],
+            'component' => ['UI/views/components', ''],
+            'component-view' => ['UI/views/components', ''],
+            'component-dto' => ['UI/views/components', ''],
+            'component-view-only' => ['UI/views/components', ''],
+            'layout' => ['UI/views/layouts', ''],
             'dto' => ['Dto', ''],
         ];
 

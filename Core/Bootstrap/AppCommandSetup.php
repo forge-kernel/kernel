@@ -6,9 +6,11 @@ namespace Forge\Core\Bootstrap;
 
 use Forge\CLI\Application;
 use Forge\CLI\Attributes\Cli;
+use Forge\CLI\Attributes\Command as CommandAttr;
 use Forge\CLI\Command;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Structure\StructureResolver;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Traits\NamespaceHelper;
@@ -65,28 +67,40 @@ final class AppCommandSetup
 
     private function buildClassMap(): void
     {
-        $appNamespace = 'App\\Commands';
+        $appNamespace = 'App\\';
 
-        $structureResolver = $this->container->has(StructureResolver::class)
-            ? $this->container->get(StructureResolver::class)
-            : null;
+        // 1. Attribute-based discovery: any class under app/ with #[Cli] or #[Command]
+        $discoveryService = new AttributeDiscoveryService();
+        $classMap = $discoveryService->discover(['app'], [Cli::class, CommandAttr::class]);
 
-        if ($structureResolver) {
-            try {
-                $appCommandsPath = $structureResolver->getAppPath('commands');
-                $appPath = BASE_PATH . '/' . $appCommandsPath;
-            } catch (\InvalidArgumentException $e) {
-                $appPath = BASE_PATH . '/app/Commands';
+        foreach ($classMap as $className => $metadata) {
+            if (!in_array(Cli::class, $metadata['attributes'] ?? [], true) && !in_array(CommandAttr::class, $metadata['attributes'] ?? [], true)) {
+                continue;
             }
-        } else {
-            $appPath = BASE_PATH . '/app/Commands';
+
+            if (!is_subclass_of($className, Command::class)) {
+                continue;
+            }
+
+            if (!str_starts_with($className, $appNamespace)) {
+                continue;
+            }
+
+            // Exclude module classes; they are handled by RegisterModuleCommand.
+            if (str_starts_with($className, 'App\\Modules\\')) {
+                continue;
+            }
+
+            $this->classMap[$className] = $metadata['file'];
         }
 
-        if (!is_dir($appPath)) {
+        // 2. Legacy folder fallback: app/Commands/ (or configured commands path)
+        $appCommandsPath = $this->resolveAppCommandsPath();
+        if ($appCommandsPath === null || !is_dir($appCommandsPath)) {
             return;
         }
 
-        $directoryIterator = new RecursiveDirectoryIterator($appPath);
+        $directoryIterator = new RecursiveDirectoryIterator($appCommandsPath);
         $iterator = new RecursiveIteratorIterator($directoryIterator);
 
         foreach ($iterator as $file) {
@@ -101,12 +115,29 @@ final class AppCommandSetup
                 continue;
             }
 
-            if (!str_starts_with($className, $appNamespace)) {
+            if (!str_starts_with($className, 'App\\Commands\\')) {
                 continue;
             }
 
             $this->classMap[$className] = $filePath;
         }
+    }
+
+    private function resolveAppCommandsPath(): ?string
+    {
+        $structureResolver = $this->container->has(StructureResolver::class)
+            ? $this->container->get(StructureResolver::class)
+            : null;
+
+        if ($structureResolver) {
+            try {
+                return BASE_PATH . '/' . $structureResolver->getAppPath('commands');
+            } catch (\InvalidArgumentException $e) {
+                return BASE_PATH . '/app/Commands';
+            }
+        }
+
+        return BASE_PATH . '/app/Commands';
     }
 
     private function extractClassNameFromFile(string $filePath): ?string
@@ -172,12 +203,13 @@ final class AppCommandSetup
                 continue;
             }
 
-            $attributes = (new ReflectionClass($className))->getAttributes(Cli::class);
-            if (empty($attributes)) {
+            $reflection = new ReflectionClass($className);
+            $attribute = $reflection->getAttributes(CommandAttr::class)[0] ?? $reflection->getAttributes(Cli::class)[0] ?? null;
+            if ($attribute === null) {
                 continue;
             }
 
-            $instance = $attributes[0]->newInstance();
+            $instance = $attribute->newInstance();
             $cliApplication->registerAppCommandClass($className, $instance->command, $instance->description);
         }
     }

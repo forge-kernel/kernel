@@ -2,14 +2,7 @@
 
 namespace Forge\Core\Helpers;
 
-// use Forge\Core\DI\Container;
-
-use App\Modules\ForgeDebugbar\Collectors\ExceptionCollector;
-use App\Modules\ForgeDebugbar\Collectors\MessageCollector;
 use Forge\Core\DI\Container;
-//use Forge\Modules\ForgeDebugbar\Collectors\ExceptionCollector;
-// use Forge\Modules\ForgeDebugbar\Collectors\MessageCollector;
-// use Forge\Modules\ForgeDebugbar\Collectors\TimelineCollector;
 use ReflectionClass;
 
 final class Debuger
@@ -230,8 +223,7 @@ final class Debuger
     {
         if (class_exists(\App\Modules\ForgeDebugbar\DebugBar::class)) {
             if (env('APP_ENV', false)) {
-                /** @var MessageCollector $messageCollector */
-                $messageCollector = Container::getInstance()->get(MessageCollector::class);
+                $messageCollector = Container::getInstance()->get(\App\Modules\ForgeDebugbar\Collectors\MessageCollector::class);
                 $messageCollector::instance()->addMessage($message, $label);
             }
         }
@@ -239,10 +231,9 @@ final class Debuger
 
     public static function logException(\Throwable $exception): void
     {
-        if (class_exists(ExceptionCollector::class)) {
+        if (class_exists(\App\Modules\ForgeDebugbar\Collectors\ExceptionCollector::class)) {
             if (env('APP_ENV', false)) {
-                /** @var ExceptionCollector $exceptionCollector */
-                $exceptionCollector = Container::getInstance()->get(ExceptionCollector::class);
+                $exceptionCollector = Container::getInstance()->get(\App\Modules\ForgeDebugbar\Collectors\ExceptionCollector::class);
                 $exceptionCollector::instance()->addException($exception);
             }
         }

@@ -6,12 +6,9 @@ namespace Forge\Core\Cache;
 
 require_once __DIR__ . "/Attributes/Cache.php";
 
-use App\Modules\ForgeEvents\Exceptions\EventException;
 use Forge\Core\Cache\Attributes\Cache;
 use Forge\Core\Cache\Traits\CacheTrait;
 use Forge\Core\DI\Container;
-use Forge\Core\Events\CacheRefreshEvent;
-use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Exceptions\MissingServiceException;
 use ReflectionException;
 use ReflectionMethod;
@@ -233,19 +230,18 @@ final class CacheInterceptor
         ?array           $tags = null,
     ): void
     {
-        $forgeEventsModulePath = BASE_PATH . "/modules/ForgeEvents/src/ForgeEventsModule.php";
-        $forgeEventsModule = FileExistenceCache::exists($forgeEventsModulePath);
-        if (!$forgeEventsModule) {
+        $eventDispatcher = \App\Modules\ForgeEvents\Services\EventDispatcher::class;
+        if (!class_exists($eventDispatcher)) {
             return;
         }
 
         /** @var \App\Modules\ForgeEvents\Services\EventDispatcher $dispatcher */
-        $dispatcher = Container::getInstance()->make(
-            \App\Modules\ForgeEvents\Services\EventDispatcher::class,
-        );
+        $dispatcher = Container::getInstance()->make($eventDispatcher);
+
+        $eventClass = 'App\Modules\ForgeEvents\Events\CacheRefreshEvent';
 
         $dispatcher->dispatch(
-            new CacheRefreshEvent(
+            new $eventClass(
                 instance: $instance,
                 method: $method->getName(),
                 args: $args,

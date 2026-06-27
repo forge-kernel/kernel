@@ -69,6 +69,7 @@ final class GenerateSeederCommand extends Command
         $tokens = [
             '{{ seederName }}' => $className,
             '{{ tableName }}' => $this->toSnakeCase($this->table),
+            '{{ namespace }}' => $this->resolve('seeder')['namespace'],
         ];
 
         $this->generateFromStub('seeder', $migrationFile, $tokens);

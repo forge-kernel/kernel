@@ -2,10 +2,14 @@
 
 declare(strict_types=1);
 
-use Forge\Core\Database\Seeders\Attributes\AutoRollback;
-use Forge\Core\Database\Seeders\Seeder;
-use Forge\Core\Database\Seeders\Attributes\SeederInfo;
+namespace {{ namespace }};
 
+use App\Modules\ForgeDatabaseSQL\DB\Seeders\Attributes\AutoRollback;
+use App\Modules\ForgeDatabaseSQL\DB\Seeders\Attributes\SeederInfo;
+use App\Modules\ForgeDatabaseSQL\DB\Seeders\Attributes\Seedable;
+use App\Modules\ForgeDatabaseSQL\DB\Seeders\Seeder;
+
+#[Seedable]
 #[SeederInfo(description: 'Seed default admin user', author: 'Forge')]
 #[AutoRollback('{{ tableName }}', ['email' => 'admin@example.com'])]
 class {{ seederName }} extends Seeder

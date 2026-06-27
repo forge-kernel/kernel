@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Forge\Core\Module\ModuleLoader;
 
+use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Module\Attributes\Provides;
@@ -68,7 +69,7 @@ final class RegisterModuleProvides
 
             try {
                 $classReflection = ModuleFileDiscovery::getReflectionClass($className);
-                if ($classReflection->getAttributes(Service::class)) {
+                if ($classReflection->getAttributes(Injectable::class) || $classReflection->getAttributes(Service::class)) {
                     foreach ($classReflection->getAttributes(Provides::class) as $attribute) {
                         $provideInstance = $attribute->newInstance();
                         $this->container->bind($provideInstance->interface, $className);

@@ -500,7 +500,9 @@ final class Loader
     {
         $this->modules[$moduleName] = $className;
 
-        new RegisterModuleCommand($this->container, $reflectionClass)->init();
+        if (PHP_SAPI === 'cli') {
+            new RegisterModuleCommand($this->container, $reflectionClass)->init();
+        }
         new RegisterModuleConfig($this->config, $reflectionClass)->init();
         if (
             $this->container->has(

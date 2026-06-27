@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Forge\Core\Bootstrap;
 
-use App\Modules\ForgeEvents\Attributes\EventListener;
-use App\Modules\ForgeEvents\Services\EventDispatcher;
 use Forge\Core\Config\Config;
 use Forge\Core\DI\Attributes\Discoverable;
+use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
@@ -41,12 +40,10 @@ final class ServiceDiscoverSetup
             return;
         }
 
-        if ($container->has(\App\Modules\ForgeEvents\Services\EventDispatcher::class)) {
-            /** @var EventDispatcher $eventDispatcherService */
-            $eventDispatcherService = $container->get(EventDispatcher::class);
-        } else {
-            $eventDispatcherService = null;
-        }
+        $eventDispatcherClass = 'App\Modules\ForgeEvents\Services\EventDispatcher';
+        $eventDispatcherService = class_exists($eventDispatcherClass) && $container->has($eventDispatcherClass)
+            ? $container->get($eventDispatcherClass)
+            : null;
 
         $discoveryService = new AttributeDiscoveryService();
         $basePaths = self::getBasePaths($container);
@@ -54,9 +51,10 @@ final class ServiceDiscoverSetup
         $attributeClasses = [
             Service::class,
             Discoverable::class,
+            Injectable::class,
         ];
 
-        $classMap = $discoveryService->discover($basePaths, $attributeClasses);
+        $classMap = $discoveryService->discover($basePaths, $attributeClasses, false);
 
         $filesToCheck = [];
         foreach ($classMap as $className => $metadata) {
@@ -103,7 +101,8 @@ final class ServiceDiscoverSetup
 
                     $serviceAttr = ReflectionCacheService::getClassAttributes($reflectionClass, Service::class);
                     $discoverableAttr = ReflectionCacheService::getClassAttributes($reflectionClass, Discoverable::class);
-                    $attr = $serviceAttr[0] ?? $discoverableAttr[0] ?? null;
+                    $injectableAttr = ReflectionCacheService::getClassAttributes($reflectionClass, Injectable::class);
+                    $attr = $serviceAttr[0] ?? $discoverableAttr[0] ?? $injectableAttr[0] ?? null;
                     if ($attr) {
                         $inst = $attr->newInstance();
                         $cacheServices[$inst->id ?? $reflectionClass->getName()] = [
@@ -161,7 +160,8 @@ final class ServiceDiscoverSetup
     private static function hasServiceAttribute(ReflectionClass $reflectionClass): bool
     {
         return !empty(ReflectionCacheService::getClassAttributes($reflectionClass, Service::class)) ||
-            !empty(ReflectionCacheService::getClassAttributes($reflectionClass, Discoverable::class));
+            !empty(ReflectionCacheService::getClassAttributes($reflectionClass, Discoverable::class)) ||
+            !empty(ReflectionCacheService::getClassAttributes($reflectionClass, Injectable::class));
     }
 
     /**
@@ -183,11 +183,12 @@ final class ServiceDiscoverSetup
      * @throws MissingServiceException
      * @throws ResolveParameterException
      */
-    private static function registerEventListeners(ReflectionClass $reflectionClass, EventDispatcher $eventDispatcher, Container $container, ?array &$cacheCollector = null): void
+    private static function registerEventListeners(ReflectionClass $reflectionClass, object $eventDispatcher, Container $container, ?array &$cacheCollector = null): void
     {
+        $eventListenerAttribute = 'App\Modules\ForgeEvents\Attributes\EventListener';
         $methods = ReflectionCacheService::getClassMethods($reflectionClass, ReflectionMethod::IS_PUBLIC);
         foreach ($methods as $method) {
-            $attributes = ReflectionCacheService::getMethodAttributes($method, EventListener::class);
+            $attributes = ReflectionCacheService::getMethodAttributes($method, $eventListenerAttribute);
             foreach ($attributes as $attribute) {
                 $listenerAttributeInstance = $attribute->newInstance();
                 $eventClass = $listenerAttributeInstance->eventClass;

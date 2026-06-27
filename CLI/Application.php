@@ -5,23 +5,18 @@ declare(strict_types=1);
 namespace Forge\CLI;
 
 use Forge\CLI\Attributes\Cli;
+use Forge\CLI\Attributes\Command;
 use Forge\CLI\Commands\Assets\AssetLinkCommand;
 use Forge\CLI\Commands\Assets\AssetUnlinkCommand;
 use Forge\CLI\Commands\FlushCacheCommand;
 use Forge\CLI\Commands\WarmCacheCommand;
 use Forge\CLI\Commands\Generate\GenerateCommandCommand;
-use Forge\CLI\Commands\Generate\GenerateComponentCommand;
-use Forge\CLI\Commands\Generate\GenerateDtoCommand;
-use Forge\CLI\Commands\Generate\GenerateEnumCommand;
 use Forge\CLI\Commands\Generate\GenerateEventCommand;
-use Forge\CLI\Commands\Generate\GenerateLayoutCommand;
 use Forge\CLI\Commands\Generate\GenerateMigrationCommand;
 use Forge\CLI\Commands\Generate\GenerateModelCommand;
 use Forge\CLI\Commands\Generate\GenerateModuleCommand;
 use Forge\CLI\Commands\Generate\GenerateSeederCommand;
-use Forge\CLI\Commands\Generate\GenerateServiceCommand;
 use Forge\CLI\Commands\Generate\GenerateTestCommand;
-use Forge\CLI\Commands\Generate\GenerateTraitCommand;
 use Forge\CLI\Commands\HelpCommand;
 use Forge\CLI\Commands\KeyGenerateCommand;
 use Forge\CLI\Commands\MaintenanceDownCommand;
@@ -106,13 +101,7 @@ final class Application
             GenerateSeederCommand::class,
             GenerateModelCommand::class,
             GenerateCommandCommand::class,
-            GenerateDtoCommand::class,
-            GenerateServiceCommand::class,
-            GenerateEnumCommand::class,
-            GenerateTraitCommand::class,
             GenerateTestCommand::class,
-            GenerateLayoutCommand::class,
-            GenerateComponentCommand::class,
             StructureInfoCommand::class,
             StructureInitCommand::class,
         ];
@@ -136,7 +125,7 @@ final class Application
     ): void {
         $reflectionClass = new ReflectionClass($commandClass);
         $commandAttribute =
-            $reflectionClass->getAttributes(Cli::class)[0] ?? null;
+            $reflectionClass->getAttributes(Command::class)[0] ?? $reflectionClass->getAttributes(Cli::class)[0] ?? null;
 
         if ($commandAttribute) {
             $commandInstance = $commandAttribute->newInstance();

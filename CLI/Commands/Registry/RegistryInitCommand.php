@@ -193,7 +193,7 @@ final class RegistryInitCommand extends Command
 
             if ($value === null && $arg->required) {
                 $ref = new \ReflectionObject($this);
-                $hasCli = $ref->getAttributes(\Forge\CLI\Attributes\Cli::class)[0] ?? null;
+                $hasCli = $ref->getAttributes(\Forge\CLI\Attributes\Command::class)[0] ?? $ref->getAttributes(\Forge\CLI\Attributes\Cli::class)[0] ?? null;
 
                 $prompt = $arg->ask ?? ucfirst(str_replace("_", " ", $arg->name));
                 if ($hasCli && $arg->description) {

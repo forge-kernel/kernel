@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Forge\Core\Module\ModuleLoader;
 
+use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
@@ -40,7 +41,7 @@ final class RegisterModuleService
       $className = $file['className'];
       if (class_exists($className, false)) {
         $classReflection = ModuleFileDiscovery::getReflectionClass($className);
-        if ($classReflection->getAttributes(Service::class)) {
+        if ($classReflection->getAttributes(Injectable::class) || $classReflection->getAttributes(Service::class)) {
           $this->container->register($className);
         }
       }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Core\Bootstrap;
 
-use App\Modules\ForgeRouter\Contracts\ErrorHandlerInterface;
 use Forge\Core\DI\Container;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
@@ -36,24 +35,27 @@ final class ErrorHandlerSetup
         );
         error_reporting(E_ALL);
 
+        $errorHandlerInterface = 'App\Modules\ForgeRouter\Contracts\ErrorHandlerInterface';
         $errorHandler = null;
 
-        try {
-            if ($container->has(ErrorHandlerInterface::class)) {
-                $errorHandler = $container->get(ErrorHandlerInterface::class);
-            }
-
-            if (!$errorHandler) {
-                $errorHandlers = $container->getAll(
-                    ErrorHandlerInterface::class,
-                );
-
-                if (!empty($errorHandlers)) {
-                    $errorHandler = $errorHandlers[0];
+        if (interface_exists($errorHandlerInterface)) {
+            try {
+                if ($container->has($errorHandlerInterface)) {
+                    $errorHandler = $container->get($errorHandlerInterface);
                 }
+
+                if (!$errorHandler) {
+                    $errorHandlers = $container->getAll(
+                        $errorHandlerInterface,
+                    );
+
+                    if (!empty($errorHandlers)) {
+                        $errorHandler = $errorHandlers[0];
+                    }
+                }
+            } catch (\Throwable $e) {
+                error_log("Failed to discover error handler: " . $e->getMessage());
             }
-        } catch (\Throwable $e) {
-            error_log("Failed to discover error handler: " . $e->getMessage());
         }
 
         if (!$errorHandler) {

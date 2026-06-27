@@ -6,6 +6,7 @@ namespace Forge\CLI\Traits;
 
 use Forge\CLI\Attributes\Arg;
 use Forge\CLI\Attributes\Cli;
+use Forge\CLI\Attributes\Command as CommandAttr;
 use ReflectionNamedType;
 use ReflectionObject;
 
@@ -20,7 +21,7 @@ trait Wizard
     {
         $ref = new ReflectionObject($this);
 
-        $commandAttr = $ref->getAttributes(Cli::class)[0] ?? null;
+        $commandAttr = $ref->getAttributes(CommandAttr::class)[0] ?? $ref->getAttributes(Cli::class)[0] ?? null;
         $commandDesc = $commandAttr?->newInstance()->description ?? null;
 
         if ($commandDesc) {
@@ -87,7 +88,7 @@ trait Wizard
     private function askUntilValid(Arg $arg): string
     {
         $ref = new ReflectionObject($this);
-        $hasCli = $ref->getAttributes(Cli::class)[0] ?? null;
+        $hasCli = $ref->getAttributes(CommandAttr::class)[0] ?? $ref->getAttributes(Cli::class)[0] ?? null;
 
         $prompt = $arg->ask ?? ucfirst(str_replace("_", " ", $arg->name));
         if ($hasCli && $arg->description) {

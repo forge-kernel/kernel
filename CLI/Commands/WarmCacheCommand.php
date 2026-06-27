@@ -7,7 +7,6 @@ namespace Forge\CLI\Commands;
 use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Command;
 use Forge\CLI\Traits\OutputHelper;
-use App\Modules\ForgeRouter\Events\RouterHookManager;
 use Forge\Core\Bootstrap\ModuleSetup;
 use Forge\Core\Contracts\Cache\CacheWarmerInterface;
 use Forge\Core\DI\Container;
@@ -95,13 +94,18 @@ final class WarmCacheCommand extends Command
         $this->info("Rebuilding router hooks...");
 
         try {
-            RouterHookManager::rebuild();
+            $routerHookManagerClass = \App\Modules\ForgeRouter\Events\RouterHookManager::class;
+            if (class_exists($routerHookManagerClass)) {
+                $routerHookManagerClass::rebuild();
 
-            $routerHooksFile = BASE_PATH . '/storage/framework/cache/router_hooks.php';
-            if (FileExistenceCache::exists($routerHooksFile)) {
-                $this->success("Router hooks rebuilt successfully.");
+                $routerHooksFile = BASE_PATH . '/storage/framework/cache/router_hooks.php';
+                if (FileExistenceCache::exists($routerHooksFile)) {
+                    $this->success("Router hooks rebuilt successfully.");
+                } else {
+                    $this->warning("Router hooks file was not created.");
+                }
             } else {
-                $this->warning("Router hooks file was not created.");
+                $this->warning("RouterHookManager not available (ForgeRouter module not loaded).");
             }
         } catch (\Exception $e) {
             $this->error("Failed to rebuild router hooks: " . $e->getMessage());
@@ -146,11 +150,7 @@ final class WarmCacheCommand extends Command
 
             if (FileExistenceCache::exists($cacheFile)) {
                 $discoveryService->clearCache();
-                $this->success("Attribute discovery cache warmed successfully.");
-            } else {
-                $this->warning("Attribute discovery cache file does not exist.");
             }
-
             $this->success("Attribute discovery cache warmed successfully.");
         } catch (\Exception $e) {
             $this->error("Failed to warm attribute discovery cache: " . $e->getMessage());

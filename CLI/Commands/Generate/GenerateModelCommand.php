@@ -12,14 +12,14 @@ use Forge\CLI\Traits\CliGenerator;
 use Forge\Traits\StringHelper;
 
 #[Cli(
-    command: 'generate:model',
-    description: 'Create a new model',
-    usage: 'generate:model [--type=app|module] [--module=ModuleName] [--name=Example]',
+    command: 'generate:entity',
+    description: 'Create a new entity',
+    usage: 'generate:entity [--type=app|module] [--module=ModuleName] [--name=Example]',
     examples: [
-        'generate:model --type=app --name=User',
-        'generate:model --type=app --name=api/User',
-        'generate:model --type=module --module=Blog --name=Post',
-        'generate:model   (starts wizard)',
+        'generate:entity --type=app --name=User',
+        'generate:entity --type=app --name=api/User',
+        'generate:entity --type=module --module=Blog --name=Post',
+        'generate:entity   (starts wizard)',
     ]
 )]
 final class GenerateModelCommand extends Command
@@ -33,15 +33,15 @@ final class GenerateModelCommand extends Command
     #[Arg(name: 'module', description: 'Module name when type=module', required: false)]
     private ?string $module = null;
 
-    #[Arg(name: 'name', description: 'Model name (e.g., User, api/User, admin/Dashboard)', validate: '/^[\w\/\s-]+$/')]
+    #[Arg(name: 'name', description: 'Entity name (e.g., User, api/User, admin/Dashboard)', validate: '/^[\w\/\s-]+$/')]
     private string $name;
 
-    #[Arg(name: 'table name', description: 'Model table name', validate: '')]
+    #[Arg(name: 'table name', description: 'Entity table name', validate: '')]
     private string $table;
 
     #[Arg(
         name: 'path',
-        description: 'Optional subfolder inside Models (e.g., Admin, Api/V1)',
+        description: 'Optional subfolder inside Entities (e.g., Admin, Api/V1)',
         default: '',
         required: false
     )]

@@ -15,11 +15,11 @@ trait ManagesAssetLinks
     {
         return match ($type) {
             'app' => [
-                'target' => BASE_PATH . '/app/resources/assets',
+                'target' => BASE_PATH . '/app/UI/assets',
                 'link' => BASE_PATH . '/public/assets/app',
             ],
             'module' => [
-                'target' => BASE_PATH . "/modules/{$this->toPascalCase($module)}/src/Resources/assets",
+                'target' => BASE_PATH . "/modules/{$this->toPascalCase($module)}/src/UI/assets",
                 'link' => BASE_PATH . "/public/assets/modules/" . $this->toKebabCase($module),
             ],
             default => throw new InvalidArgumentException("Invalid asset type: {$type}")
@@ -39,7 +39,7 @@ trait ManagesAssetLinks
             $this->success("Created directory: $dir");
         }
 
-        if (file_exists($link)) {
+        if (file_exists($link) || is_link($link)) {
             $this->info("Link [$link] already exists.");
             return 0;
         }
@@ -51,7 +51,7 @@ trait ManagesAssetLinks
 
     protected function unlinkDirectory(string $path): int
     {
-        if (!file_exists($path)) {
+        if (!file_exists($path) && !is_link($path)) {
             $this->info("The [$path] link does not exist.");
             return 0;
         }

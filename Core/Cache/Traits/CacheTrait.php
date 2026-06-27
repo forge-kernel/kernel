@@ -23,37 +23,33 @@ trait CacheTrait
         }
 
         $class = $payload['c'];
-        
-        // Special handling for Paginator objects
-        if ($class === \App\Modules\ForgeSqlOrm\ORM\Paginator::class) {
+
+        $paginatorClass = 'App\Modules\ForgeSqlOrm\ORM\Paginator';
+        $modelClass = 'App\Modules\ForgeSqlOrm\ORM\Model';
+
+        if ($class === $paginatorClass) {
             return $this->reconstructPaginator($payload['d']);
         }
-        
-        // Special handling for Model objects
-        if (is_subclass_of($class, \App\Modules\ForgeSqlOrm\ORM\Model::class)) {
+
+        if (class_exists($modelClass) && is_subclass_of($class, $modelClass)) {
             return $this->reconstructModel($class, $payload['d']);
         }
-        
+
         return new $class($payload['d']);
     }
-    
-    /**
-     * Reconstruct Model from cached array data
-     */
-    private function reconstructModel(string $class, array $data): \App\Modules\ForgeSqlOrm\ORM\Model
+
+    private function reconstructModel(string $class, array $data): object
     {
-        // Use the model's fromRow method for proper reconstruction
         return $class::fromRow($data);
     }
-    
-    /**
-     * Reconstruct Paginator from cached array data
-     */
-    private function reconstructPaginator(array $data): \App\Modules\ForgeSqlOrm\ORM\Paginator
+
+    private function reconstructPaginator(array $data): object
     {
         $meta = $data['meta'] ?? [];
-        
-        return new \App\Modules\ForgeSqlOrm\ORM\Paginator(
+
+        $paginatorClass = 'App\Modules\ForgeSqlOrm\ORM\Paginator';
+
+        return new $paginatorClass(
             items: $data['data'] ?? [],
             total: $meta['total'] ?? 0,
             perPage: $meta['per_page'] ?? 10,

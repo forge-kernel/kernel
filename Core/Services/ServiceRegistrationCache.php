@@ -92,17 +92,20 @@ final class ServiceRegistrationCache
         }
 
         if (!empty($cache['event_listeners'])) {
-            try {
-                $eventDispatcher = $container->get(\App\Modules\ForgeEvents\Services\EventDispatcher::class);
-                foreach ($cache['event_listeners'] as $eventClass => $listeners) {
-                    foreach ($listeners as $listener) {
-                        $instance = $container->has($listener['class'])
-                            ? $container->get($listener['class'])
-                            : $container->make($listener['class']);
-                        $eventDispatcher->addListener($eventClass, [$instance, $listener['method']]);
+            $dispatcherClass = \App\Modules\ForgeEvents\Services\EventDispatcher::class;
+            if (class_exists($dispatcherClass)) {
+                try {
+                    $eventDispatcher = $container->get($dispatcherClass);
+                    foreach ($cache['event_listeners'] as $eventClass => $listeners) {
+                        foreach ($listeners as $listener) {
+                            $instance = $container->has($listener['class'])
+                                ? $container->get($listener['class'])
+                                : $container->make($listener['class']);
+                            $eventDispatcher->addListener($eventClass, [$instance, $listener['method']]);
+                        }
                     }
+                } catch (\Throwable) {
                 }
-            } catch (\Throwable) {
             }
         }
 

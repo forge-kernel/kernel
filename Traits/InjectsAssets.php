@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Traits;
 
-use App\Modules\ForgeRouter\Http\Response;
-
 trait InjectsAssets
 {
     /**
@@ -36,7 +34,7 @@ trait InjectsAssets
      * * @param Response $response The response object to modify.
      * @return void
      */
-    protected function injectAssets(Response $response): void
+    protected function injectAssets(object $response): void
     {
         $contentType = $response->getHeader('Content-Type') ?? '';
 
