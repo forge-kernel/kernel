@@ -38,12 +38,12 @@ use Forge\CLI\Commands\Registry\RegistryManageCommand;
 use Forge\CLI\Commands\Registry\RegistryModuleRemoveCommand;
 use Forge\CLI\Commands\Registry\RegistryReadmeUpdateCommand;
 use Forge\CLI\Commands\Registry\RegistrySyncVersionsCommand;
-use Forge\CLI\Commands\Registry\StarterInitCommand;
-use Forge\CLI\Commands\Registry\StarterListCommand;
-use Forge\CLI\Commands\Registry\StarterPublishCommand;
-use Forge\CLI\Commands\Registry\StarterRemoveCommand;
-use Forge\CLI\Commands\Registry\StarterScaffoldCommand;
-use Forge\CLI\Commands\Registry\StarterVersionCommand;
+use Forge\CLI\Commands\Registry\BlueprintInitCommand;
+use Forge\CLI\Commands\Registry\BlueprintListCommand;
+use Forge\CLI\Commands\Registry\BlueprintPublishCommand;
+use Forge\CLI\Commands\Registry\BlueprintRemoveCommand;
+use Forge\CLI\Commands\Registry\BlueprintScaffoldCommand;
+use Forge\CLI\Commands\Registry\BlueprintVersionCommand;
 use Forge\CLI\Commands\Dev\DevStructureAddCommand;
 use Forge\CLI\Commands\StructureInfoCommand;
 use Forge\CLI\Commands\StructureInitCommand;
@@ -179,12 +179,12 @@ final class Application
             RegistryReadmeUpdateCommand::class,
             RegistryModuleRemoveCommand::class,
             RegistrySyncVersionsCommand::class,
-            StarterInitCommand::class,
-            StarterListCommand::class,
-            StarterPublishCommand::class,
-            StarterRemoveCommand::class,
-            StarterScaffoldCommand::class,
-            StarterVersionCommand::class,
+            BlueprintInitCommand::class,
+            BlueprintListCommand::class,
+            BlueprintPublishCommand::class,
+            BlueprintRemoveCommand::class,
+            BlueprintScaffoldCommand::class,
+            BlueprintVersionCommand::class,
             DevStructureAddCommand::class,
         ];
 

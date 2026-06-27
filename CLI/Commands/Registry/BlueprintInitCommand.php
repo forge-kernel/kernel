@@ -11,14 +11,14 @@ use Forge\Core\Services\RegistryService;
 use Forge\Core\Services\TemplateGenerator;
 
 #[Cli(
-    command: 'dev:starter:init',
-    description: 'Initialize a starter registry with wizard',
-    usage: 'dev:starter:init',
+    command: 'dev:blueprint:init',
+    description: 'Initialize a blueprint registry with wizard',
+    usage: 'dev:blueprint:init',
     examples: [
-        'dev:starter:init',
+        'dev:blueprint:init',
     ]
 )]
-final class StarterInitCommand extends Command
+final class BlueprintInitCommand extends Command
 {
     use CliGenerator;
 
@@ -30,10 +30,10 @@ final class StarterInitCommand extends Command
 
     public function execute(array $args): int
     {
-        if ($this->registryService->isRegistryDirectoryInitialized('starter')) {
-            $registryPath = $this->registryService->getRegistryPath('starter');
+        if ($this->registryService->isRegistryDirectoryInitialized('blueprint')) {
+            $registryPath = $this->registryService->getRegistryPath('blueprint');
             $messages = [];
-            $messages[] = "Starter registry already exists at: {$registryPath}";
+            $messages[] = "Blueprint registry already exists at: {$registryPath}";
             $messages[] = "This directory contains a git repository and may have existing data.";
             $messages[] = "Initializing will:";
             $messages[] = "Create/overwrite initial structure files";
@@ -44,12 +44,12 @@ final class StarterInitCommand extends Command
             $this->showDangerBox('DESTRUCTIVE ACTION WARNING', $messages, 'This action may cause data loss if the registry is already in use!');
 
             $confirm = $this->templateGenerator->askQuestion(
-                'Type "yes, initialize" to proceed with starter registry initialization (or press Enter to cancel): ',
+                'Type "yes, initialize" to proceed with blueprint registry initialization (or press Enter to cancel): ',
                 ''
             );
 
             if (strtolower(trim($confirm)) !== 'yes, initialize') {
-                $this->info('Starter registry initialization cancelled. Existing registry left untouched.');
+                $this->info('Blueprint registry initialization cancelled. Existing registry left untouched.');
                 return 0;
             }
             $this->line("");
@@ -76,20 +76,20 @@ final class StarterInitCommand extends Command
         );
         $isPrivate = in_array(strtolower($isPrivateInput), ['yes', 'y', '1', 'true'], true);
 
-        $this->info("Initializing starter registry...");
+        $this->info("Initializing blueprint registry...");
 
         try {
             $this->registryService->initializeRegistry(
-                'starter',
+                'blueprint',
                 $url,
                 $branch,
                 $isPrivate
             );
 
-            $this->success("Starter registry initialized successfully!");
+            $this->success("Blueprint registry initialized successfully!");
             return 0;
         } catch (\Exception $e) {
-            $this->error("Failed to initialize starter registry: " . $e->getMessage());
+            $this->error("Failed to initialize blueprint registry: " . $e->getMessage());
             return 1;
         }
     }

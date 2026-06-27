@@ -16,27 +16,27 @@ use Forge\Core\Services\TemplateGenerator;
 use Forge\Traits\StringHelper;
 
 #[Cli(
-    command: 'dev:starter:version',
-    description: 'Create a new starter version (zip, update manifest, commit)',
-    usage: 'dev:starter:version --name=starter-name [--version=X.Y.Z] [--source=/path/to/source]',
+    command: 'dev:blueprint:version',
+    description: 'Create a new blueprint version (zip, update manifest, commit)',
+    usage: 'dev:blueprint:version --name=blueprint-name [--version=X.Y.Z] [--source=/path/to/source]',
     examples: [
-        'dev:starter:version --name=blank',
-        'dev:starter:version --name=minimal --version=1.0.0',
-        'dev:starter:version --name=custom --source=./my-starter',
+        'dev:blueprint:version --name=blank',
+        'dev:blueprint:version --name=minimal --version=1.0.0',
+        'dev:blueprint:version --name=custom --source=./my-blueprint',
     ]
 )]
-final class StarterVersionCommand extends Command
+final class BlueprintVersionCommand extends Command
 {
     use CliGenerator;
     use StringHelper;
 
-    #[Arg(name: 'name', description: 'Starter name in kebab-case', required: true)]
+    #[Arg(name: 'name', description: 'Blueprint name in kebab-case', required: true)]
     private ?string $name = null;
 
     #[Arg(name: 'version', description: 'Version number (e.g., 1.0.0)', required: false)]
     private ?string $version = null;
 
-    #[Arg(name: 'source', description: 'Path to starter source directory (default: ./starters/<name>)', required: false)]
+    #[Arg(name: 'source', description: 'Path to blueprint source directory (default: ./blueprints/<name>)', required: false)]
     private ?string $source = null;
 
     public function __construct(
@@ -52,46 +52,46 @@ final class StarterVersionCommand extends Command
     {
         $this->wizard($args);
 
-        if ($this->registryService->isRegistryDirectoryInitialized('starter')) {
-            if (!$this->registryService->isRegistryConfigured('starter')) {
-                $this->info('Starter registry directory exists with git repository. Using existing registry.');
+        if ($this->registryService->isRegistryDirectoryInitialized('blueprint')) {
+            if (!$this->registryService->isRegistryConfigured('blueprint')) {
+                $this->info('Blueprint registry directory exists with git repository. Using existing registry.');
             }
-        } elseif (!$this->registryService->isRegistryConfigured('starter')) {
-            $this->warning('Starter registry not found or not configured.');
+        } elseif (!$this->registryService->isRegistryConfigured('blueprint')) {
+            $this->warning('Blueprint registry not found or not configured.');
             $proceed = $this->templateGenerator->askQuestion(
-                'Would you like to initialize the starter registry now? (yes/no): ',
+                'Would you like to initialize the blueprint registry now? (yes/no): ',
                 'yes'
             );
 
             if (in_array(strtolower($proceed), ['yes', 'y', '1', 'true'], true)) {
-                $this->info('Initializing starter registry...');
-                $initCommand = new StarterInitCommand($this->registryService, $this->templateGenerator);
+                $this->info('Initializing blueprint registry...');
+                $initCommand = new BlueprintInitCommand($this->registryService, $this->templateGenerator);
                 $initResult = $initCommand->execute([]);
                 if ($initResult !== 0) {
                     return 1;
                 }
             } else {
-                $this->error('Cannot proceed without a starter registry.');
-                $this->info('Run: php forge.php dev:starter:init');
+                $this->error('Cannot proceed without a blueprint registry.');
+                $this->info('Run: php forge.php dev:blueprint:init');
                 return 1;
             }
         }
 
-        if (!$this->registryService->validateRegistry('starter')) {
-            $this->error('Starter registry validation failed.');
+        if (!$this->registryService->validateRegistry('blueprint')) {
+            $this->error('Blueprint registry validation failed.');
             return 1;
         }
 
         if (!$this->name) {
-            $this->error('Starter name is required.');
+            $this->error('Blueprint name is required.');
             return 1;
         }
 
-        $starterNameKebab = self::toKebabCase($this->name);
-        $sourceDir = $this->source ?? BASE_PATH . "/starter-templates/{$this->name}";
+        $blueprintNameKebab = self::toKebabCase($this->name);
+        $sourceDir = $this->source ?? BASE_PATH . "/blueprint-templates/{$this->name}";
 
         if (!is_dir($sourceDir)) {
-            $this->error("Starter source directory not found: {$sourceDir}");
+            $this->error("Blueprint source directory not found: {$sourceDir}");
             return 1;
         }
 
@@ -115,9 +115,9 @@ final class StarterVersionCommand extends Command
             }
         }
 
-        // Read starter-config.json for configurable options (structured starters only)
+        // Read blueprint-config.json for configurable options (structured blueprints only)
         $configOptions = null;
-        $configJsonPath = $sourceDir . '/starter-config.json';
+        $configJsonPath = $sourceDir . '/blueprint-config.json';
         if (file_exists($configJsonPath)) {
             $configData = json_decode(file_get_contents($configJsonPath), true);
             if (isset($configData['options']) && !empty($configData['options'])) {
@@ -125,20 +125,20 @@ final class StarterVersionCommand extends Command
             }
         }
 
-        $registryPath = $this->registryService->getRegistryPath('starter');
-        $manifestPath = $registryPath . '/starters.json';
+        $registryPath = $this->registryService->getRegistryPath('blueprint');
+        $manifestPath = $registryPath . '/blueprints.json';
 
         if ($this->gitService->isGitRepository($registryPath)) {
-            $this->info("Pulling latest changes from starter registry...");
+            $this->info("Pulling latest changes from blueprint registry...");
             if (!$this->gitService->pull($registryPath, 'origin', 'main')) {
                 $this->warning("Failed to pull latest changes from registry, but will proceed.");
             }
         }
 
         // Determine version
-        $manifest = $this->readStarterManifest($manifestPath);
+        $manifest = $this->readBlueprintManifest($manifestPath);
         if (!$this->version) {
-            $latestVersion = $manifest[$starterNameKebab]['latest'] ?? null;
+            $latestVersion = $manifest[$blueprintNameKebab]['latest'] ?? null;
 
             if ($latestVersion) {
                 $type = $this->templateGenerator->askQuestion(
@@ -154,21 +154,21 @@ final class StarterVersionCommand extends Command
             }
         }
 
-        if ($this->starterVersionExists($manifestPath, $starterNameKebab, $this->version)) {
-            $this->error("Version {$this->version} already exists for starter '{$starterNameKebab}'.");
+        if ($this->blueprintVersionExists($manifestPath, $blueprintNameKebab, $this->version)) {
+            $this->error("Version {$this->version} already exists for blueprint '{$blueprintNameKebab}'.");
             return 1;
         }
 
-        // Collect metadata — skip prompts if starter already in manifest
-        $existingStarter = $manifest[$starterNameKebab] ?? null;
-        if ($existingStarter) {
-            $starterName = $existingStarter['name'];
-            $description = $existingStarter['description'] ?? '';
-            $postInstallCommands = $existingStarter['versions'][$existingStarter['latest']]['post_install'] ?? [];
+        // Collect metadata — skip prompts if blueprint already in manifest
+        $existingBlueprint = $manifest[$blueprintNameKebab] ?? null;
+        if ($existingBlueprint) {
+            $blueprintName = $existingBlueprint['name'];
+            $description = $existingBlueprint['description'] ?? '';
+            $postInstallCommands = $existingBlueprint['versions'][$existingBlueprint['latest']]['post_install'] ?? [];
         } else {
-            $starterName = $this->templateGenerator->askQuestion(
-                'Starter display name: ',
-                $this->toPascalCase($starterNameKebab) . ' Starter'
+            $blueprintName = $this->templateGenerator->askQuestion(
+                'Blueprint display name: ',
+                $this->toPascalCase($blueprintNameKebab) . ' Blueprint'
             );
 
             $description = $this->templateGenerator->askQuestion(
@@ -187,7 +187,7 @@ final class StarterVersionCommand extends Command
         }
 
         // Create version directory in registry
-        $versionDir = $registryPath . "/starters/{$starterNameKebab}/{$this->version}";
+        $versionDir = $registryPath . "/blueprints/{$blueprintNameKebab}/{$this->version}";
         if (!is_dir($versionDir)) {
             mkdir($versionDir, 0755, true);
         }
@@ -208,11 +208,11 @@ final class StarterVersionCommand extends Command
         }
 
         $this->info("Updating manifest...");
-        $manifest = $this->readStarterManifest($manifestPath);
+        $manifest = $this->readBlueprintManifest($manifestPath);
 
-        if (!isset($manifest[$starterNameKebab])) {
-            $manifest[$starterNameKebab] = [
-                'name' => $starterName,
+        if (!isset($manifest[$blueprintNameKebab])) {
+            $manifest[$blueprintNameKebab] = [
+                'name' => $blueprintName,
                 'description' => $description,
                 'latest' => $this->version,
                 'versions' => [],
@@ -220,7 +220,7 @@ final class StarterVersionCommand extends Command
         }
 
         $versionEntry = [
-            'url' => "{$starterNameKebab}/{$this->version}",
+            'url' => "{$blueprintNameKebab}/{$this->version}",
             'integrity' => $integrity,
             'kernel' => $engineVersion,
             'modules' => $modules,
@@ -231,15 +231,15 @@ final class StarterVersionCommand extends Command
             $versionEntry['config'] = $configOptions;
         }
 
-        $manifest[$starterNameKebab]['versions'][$this->version] = $versionEntry;
-        $manifest[$starterNameKebab]['latest'] = $this->version;
+        $manifest[$blueprintNameKebab]['versions'][$this->version] = $versionEntry;
+        $manifest[$blueprintNameKebab]['latest'] = $this->version;
 
-        if (!$this->writeStarterManifest($manifestPath, $manifest)) {
+        if (!$this->writeBlueprintManifest($manifestPath, $manifest)) {
             $this->error("Failed to write manifest.");
             return 1;
         }
 
-        $commitMessage = "Add starter {$starterNameKebab} version v{$this->version}";
+        $commitMessage = "Add blueprint {$blueprintNameKebab} version v{$this->version}";
 
         $customMessage = $this->templateGenerator->askQuestion(
             'Enter commit message (or press Enter for auto-generated): ',
@@ -258,32 +258,32 @@ final class StarterVersionCommand extends Command
             return 1;
         }
 
-        $this->success("Starter {$starterNameKebab} version {$this->version} created successfully!");
+        $this->success("Blueprint {$blueprintNameKebab} version {$this->version} created successfully!");
         $this->info("ZIP file: {$zipPath}");
         $this->info("Manifest updated: {$manifestPath}");
 
         return 0;
     }
 
-    private function readStarterManifest(string $manifestPath): array
+    private function readBlueprintManifest(string $manifestPath): array
     {
         $manifest = $this->manifestService->readModulesManifest($manifestPath);
         if (!is_array($manifest)) {
             return [];
         }
-        return $manifest['starters'] ?? [];
+        return $manifest['blueprints'] ?? [];
     }
 
-    private function writeStarterManifest(string $manifestPath, array $startersData): bool
+    private function writeBlueprintManifest(string $manifestPath, array $blueprintsData): bool
     {
-        $data = ['starters' => $startersData];
+        $data = ['blueprints' => $blueprintsData];
         return $this->manifestService->writeModulesManifest($manifestPath, $data);
     }
 
-    private function starterVersionExists(string $manifestPath, string $starterName, string $version): bool
+    private function blueprintVersionExists(string $manifestPath, string $blueprintName, string $version): bool
     {
-        $manifest = $this->readStarterManifest($manifestPath);
-        return isset($manifest[$starterName]['versions'][$version]);
+        $manifest = $this->readBlueprintManifest($manifestPath);
+        return isset($manifest[$blueprintName]['versions'][$version]);
     }
 
     private function suggestNextVersion(string $currentVersion, string $type): string

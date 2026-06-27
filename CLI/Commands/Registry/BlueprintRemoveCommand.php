@@ -15,19 +15,19 @@ use Forge\Core\Services\TemplateGenerator;
 use Forge\Traits\StringHelper;
 
 #[Cli(
-    command: 'dev:starter:remove',
-    description: 'Remove a starter from the registry',
-    usage: 'dev:starter:remove --name=starter-name',
+    command: 'dev:blueprint:remove',
+    description: 'Remove a blueprint from the registry',
+    usage: 'dev:blueprint:remove --name=blueprint-name',
     examples: [
-        'dev:starter:remove --name=blank',
+        'dev:blueprint:remove --name=blank',
     ]
 )]
-final class StarterRemoveCommand extends Command
+final class BlueprintRemoveCommand extends Command
 {
     use CliGenerator;
     use StringHelper;
 
-    #[Arg(name: 'name', description: 'Starter name in kebab-case', required: true)]
+    #[Arg(name: 'name', description: 'Blueprint name in kebab-case', required: true)]
     private ?string $name = null;
 
     public function __construct(
@@ -43,39 +43,39 @@ final class StarterRemoveCommand extends Command
         $this->wizard($args);
 
         if (!$this->name) {
-            $this->error('Starter name is required.');
+            $this->error('Blueprint name is required.');
             return 1;
         }
 
         if (
-            !$this->registryService->isRegistryConfigured('starter') &&
-            !$this->registryService->isRegistryDirectoryInitialized('starter')
+            !$this->registryService->isRegistryConfigured('blueprint') &&
+            !$this->registryService->isRegistryDirectoryInitialized('blueprint')
         ) {
-            $this->error('Starter registry not found or not configured.');
-            $this->info('Run: php forge.php dev:starter:init');
+            $this->error('Blueprint registry not found or not configured.');
+            $this->info('Run: php forge.php dev:blueprint:init');
             return 1;
         }
 
-        $registryPath = $this->registryService->getRegistryPath('starter');
-        $manifestPath = $registryPath . '/starters.json';
-        $starterNameKebab = self::toKebabCase($this->name);
-        $starterDir = $registryPath . '/starters/' . $starterNameKebab;
+        $registryPath = $this->registryService->getRegistryPath('blueprint');
+        $manifestPath = $registryPath . '/blueprints.json';
+        $blueprintNameKebab = self::toKebabCase($this->name);
+        $blueprintDir = $registryPath . '/blueprints/' . $blueprintNameKebab;
 
         $manifest = $this->manifestService->readModulesManifest($manifestPath);
-        $starters = $manifest['starters'] ?? [];
+        $blueprints = $manifest['blueprints'] ?? [];
 
-        if (!isset($starters[$starterNameKebab])) {
-            $this->error("Starter '{$this->name}' not found in registry.");
+        if (!isset($blueprints[$blueprintNameKebab])) {
+            $this->error("Blueprint '{$this->name}' not found in registry.");
             return 1;
         }
 
         $messages = [];
         $messages[] = "This will DELETE the following:";
-        $messages[] = "  - Starter directory: starters/{$starterNameKebab}/";
-        $messages[] = "  - Starter entry from starters.json";
+        $messages[] = "  - Blueprint directory: blueprints/{$blueprintNameKebab}/";
+        $messages[] = "  - Blueprint entry from blueprints.json";
         $messages[] = "";
-        $messages[] = "Starter: {$this->name}";
-        $messages[] = "Latest version: " . ($starters[$starterNameKebab]['latest'] ?? 'N/A');
+        $messages[] = "Blueprint: {$this->name}";
+        $messages[] = "Latest version: " . ($blueprints[$blueprintNameKebab]['latest'] ?? 'N/A');
 
         $this->showDangerBox('DESTRUCTIVE ACTION WARNING', $messages, 'This action cannot be undone!');
 
@@ -85,35 +85,35 @@ final class StarterRemoveCommand extends Command
         );
 
         if (strtolower(trim($confirm)) !== strtolower("yes, remove {$this->name}")) {
-            $this->info('Starter removal cancelled.');
+            $this->info('Blueprint removal cancelled.');
             return 0;
         }
 
         $this->line('');
 
-        if (is_dir($starterDir)) {
-            $this->info("Removing starter directory: {$starterNameKebab}...");
-            $this->removeDirectory($starterDir);
+        if (is_dir($blueprintDir)) {
+            $this->info("Removing blueprint directory: {$blueprintNameKebab}...");
+            $this->removeDirectory($blueprintDir);
         }
 
-        unset($starters[$starterNameKebab]);
-        $manifest['starters'] = $starters;
+        unset($blueprints[$blueprintNameKebab]);
+        $manifest['blueprints'] = $blueprints;
 
-        $this->info('Updating starters.json...');
+        $this->info('Updating blueprints.json...');
         if (!$this->manifestService->writeModulesManifest($manifestPath, $manifest)) {
-            $this->error('Failed to update starters.json.');
+            $this->error('Failed to update blueprints.json.');
             return 1;
         }
 
         if ($this->gitService->isGitRepository($registryPath)) {
             $this->info('Committing changes...');
             $this->gitService->addAll($registryPath);
-            if (!$this->gitService->commit($registryPath, "Remove starter {$this->name} from registry")) {
-                $this->warning('Failed to commit changes, but starter was removed.');
+            if (!$this->gitService->commit($registryPath, "Remove blueprint {$this->name} from registry")) {
+                $this->warning('Failed to commit changes, but blueprint was removed.');
             }
         }
 
-        $this->success("Starter '{$this->name}' removed successfully!");
+        $this->success("Blueprint '{$this->name}' removed successfully!");
         return 0;
     }
 

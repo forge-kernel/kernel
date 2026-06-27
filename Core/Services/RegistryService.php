@@ -70,7 +70,7 @@ final class RegistryService
 
         return match ($type) {
             'modules' => FileExistenceCache::exists($path . '/modules.json'),
-            'starter' => FileExistenceCache::exists($path . '/starters.json'),
+            'blueprint' => FileExistenceCache::exists($path . '/blueprints.json'),
             default => FileExistenceCache::exists($path . '/forge.json'),
         };
     }
@@ -189,7 +189,7 @@ final class RegistryService
     {
         match ($type) {
             'framework' => $this->createFrameworkStructure($path),
-            'starter' => $this->createStartersStructure($path),
+            'blueprint' => $this->createBlueprintsStructure($path),
             default => $this->createModulesStructure($path),
         };
     }
@@ -260,19 +260,19 @@ final class RegistryService
         }
     }
 
-    private function createStartersStructure(string $path): void
+    private function createBlueprintsStructure(string $path): void
     {
-        if (!FileExistenceCache::isDir($path . '/starters')) {
-            mkdir($path . '/starters', 0755, true);
+        if (!FileExistenceCache::isDir($path . '/blueprints')) {
+            mkdir($path . '/blueprints', 0755, true);
         }
 
-        if (!FileExistenceCache::exists($path . '/starters.json')) {
-            $manifest = ['starters' => (object) []];
-            file_put_contents($path . '/starters.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        if (!FileExistenceCache::exists($path . '/blueprints.json')) {
+            $manifest = ['blueprints' => (object) []];
+            file_put_contents($path . '/blueprints.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         }
 
         if (!FileExistenceCache::exists($path . '/README.md')) {
-            file_put_contents($path . '/README.md', "# Starters Registry\n\nStarter kit version registry.\n");
+            file_put_contents($path . '/README.md', "# Blueprints Registry\n\nBlueprint version registry.\n");
         }
 
         if (!FileExistenceCache::exists($path . '/CHANGELOG.md')) {

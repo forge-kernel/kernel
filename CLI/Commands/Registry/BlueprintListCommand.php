@@ -15,20 +15,20 @@ use Forge\Core\Services\TemplateGenerator;
 use Forge\Traits\StringHelper;
 
 #[Cli(
-    command: 'dev:starter:list',
-    description: 'List available starters and versions from registry',
-    usage: 'dev:starter:list [--name=starter-name]',
+    command: 'dev:blueprint:list',
+    description: 'List available blueprints and versions from registry',
+    usage: 'dev:blueprint:list [--name=blueprint-name]',
     examples: [
-        'dev:starter:list',
-        'dev:starter:list --name=blank',
+        'dev:blueprint:list',
+        'dev:blueprint:list --name=blank',
     ]
 )]
-final class StarterListCommand extends Command
+final class BlueprintListCommand extends Command
 {
     use CliGenerator;
     use StringHelper;
 
-    #[Arg(name: 'name', description: 'Starter name to filter (optional)', required: false)]
+    #[Arg(name: 'name', description: 'Blueprint name to filter (optional)', required: false)]
     private ?string $name = null;
 
     public function __construct(
@@ -43,40 +43,40 @@ final class StarterListCommand extends Command
     {
         $this->wizard($args);
 
-        $registryPath = $this->registryService->getRegistryPath('starter');
-        $manifestPath = $registryPath . '/starters.json';
+        $registryPath = $this->registryService->getRegistryPath('blueprint');
+        $manifestPath = $registryPath . '/blueprints.json';
 
         if (!file_exists($manifestPath)) {
-            $this->error('Starter manifest not found.');
+            $this->error('Blueprint manifest not found.');
             return 1;
         }
 
         $manifest = $this->manifestService->readModulesManifest($manifestPath);
-        if (!$manifest || !isset($manifest['starters']) || empty($manifest['starters'])) {
-            $this->info('No starters found in registry.');
+        if (!$manifest || !isset($manifest['blueprints']) || empty($manifest['blueprints'])) {
+            $this->info('No blueprints found in registry.');
             return 0;
         }
 
-        $starters = $manifest['starters'];
+        $blueprints = $manifest['blueprints'];
 
         if ($this->name) {
-            $starterNameKebab = self::toKebabCase($this->name);
-            if (!isset($starters[$starterNameKebab])) {
-                $this->error("Starter '{$starterNameKebab}' not found in registry.");
+            $blueprintNameKebab = self::toKebabCase($this->name);
+            if (!isset($blueprints[$blueprintNameKebab])) {
+                $this->error("Blueprint '{$blueprintNameKebab}' not found in registry.");
                 return 1;
             }
 
             $this->line("");
-            $this->info("Starter: {$starterNameKebab}");
-            $this->info("Name: " . ($starters[$starterNameKebab]['name'] ?? $starterNameKebab));
-            $this->info("Description: " . ($starters[$starterNameKebab]['description'] ?? ''));
-            $this->info("Latest Version: " . ($starters[$starterNameKebab]['latest'] ?? 'Not defined'));
+            $this->info("Blueprint: {$blueprintNameKebab}");
+            $this->info("Name: " . ($blueprints[$blueprintNameKebab]['name'] ?? $blueprintNameKebab));
+            $this->info("Description: " . ($blueprints[$blueprintNameKebab]['description'] ?? ''));
+            $this->info("Latest Version: " . ($blueprints[$blueprintNameKebab]['latest'] ?? 'Not defined'));
             $this->line("");
             $this->info("Available Versions:");
 
-            $versions = $starters[$starterNameKebab]['versions'] ?? [];
+            $versions = $blueprints[$blueprintNameKebab]['versions'] ?? [];
             foreach ($versions as $version => $details) {
-                $versionFile = "starters/{$starterNameKebab}/{$version}/{$version}.zip";
+                $versionFile = "blueprints/{$blueprintNameKebab}/{$version}/{$version}.zip";
                 $commitMessage = $this->gitService->getLastCommitMessage($registryPath, $versionFile);
 
                 if ($commitMessage) {
@@ -91,23 +91,23 @@ final class StarterListCommand extends Command
             }
         } else {
             $this->line("");
-            $this->info("Available Starters:");
+            $this->info("Available Blueprints:");
             $this->line("");
 
-            foreach ($starters as $starterName => $starterInfo) {
+            foreach ($blueprints as $blueprintName => $blueprintInfo) {
                 $this->line("-----------------------------------");
-                $this->info("Starter: {$starterName}");
-                $this->info("Name: " . ($starterInfo['name'] ?? $starterName));
-                $this->info("Description: " . ($starterInfo['description'] ?? ''));
-                $this->info("Latest Version: " . ($starterInfo['latest'] ?? 'Not defined'));
+                $this->info("Blueprint: {$blueprintName}");
+                $this->info("Name: " . ($blueprintInfo['name'] ?? $blueprintName));
+                $this->info("Description: " . ($blueprintInfo['description'] ?? ''));
+                $this->info("Latest Version: " . ($blueprintInfo['latest'] ?? 'Not defined'));
                 $this->line("Available Versions:");
 
-                $versions = $starterInfo['versions'] ?? [];
+                $versions = $blueprintInfo['versions'] ?? [];
                 if (empty($versions)) {
                     $this->line("  No versions defined.");
                 } else {
                     foreach ($versions as $version => $details) {
-                        $versionFile = "starters/{$starterName}/{$version}/{$version}.zip";
+                        $versionFile = "blueprints/{$blueprintName}/{$version}/{$version}.zip";
                         $commitMessage = $this->gitService->getLastCommitMessage($registryPath, $versionFile);
 
                         if ($commitMessage) {

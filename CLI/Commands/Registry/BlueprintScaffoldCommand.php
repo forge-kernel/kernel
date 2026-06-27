@@ -12,24 +12,24 @@ use Forge\Core\Services\TemplateGenerator;
 use Forge\Traits\StringHelper;
 
 #[Cli(
-    command: 'dev:starter:scaffold',
-    description: 'Scaffold a new starter source template',
-    usage: 'dev:starter:scaffold --name=starter-name [--source=/path/to/output]',
+    command: 'dev:blueprint:scaffold',
+    description: 'Scaffold a new blueprint source template',
+    usage: 'dev:blueprint:scaffold --name=blueprint-name [--source=/path/to/output]',
     examples: [
-        'dev:starter:scaffold --name=my-starter',
-        'dev:starter:scaffold --name=api-starter',
-        'dev:starter:scaffold --name=custom --source=./my-custom-starter',
+        'dev:blueprint:scaffold --name=my-blueprint',
+        'dev:blueprint:scaffold --name=api-blueprint',
+        'dev:blueprint:scaffold --name=custom --source=./my-custom-blueprint',
     ]
 )]
-final class StarterScaffoldCommand extends Command
+final class BlueprintScaffoldCommand extends Command
 {
     use CliGenerator;
     use StringHelper;
 
-    #[Arg(name: 'name', description: 'Starter name in kebab-case', required: true)]
+    #[Arg(name: 'name', description: 'Blueprint name in kebab-case', required: true)]
     private ?string $name = null;
 
-    #[Arg(name: 'source', description: 'Output path for the starter source (default: ./starters/<name>)', required: false)]
+    #[Arg(name: 'source', description: 'Output path for the blueprint source (default: ./blueprints/<name>)', required: false)]
     private ?string $source = null;
 
     public function __construct(
@@ -42,21 +42,21 @@ final class StarterScaffoldCommand extends Command
         $this->wizard($args);
 
         if (!$this->name) {
-            $this->error('Starter name is required.');
+            $this->error('Blueprint name is required.');
             return 1;
         }
 
-        $starterNameKebab = self::toKebabCase($this->name);
-        $starterDir = $this->source ?? BASE_PATH . "/starter-templates/{$starterNameKebab}";
+        $blueprintNameKebab = self::toKebabCase($this->name);
+        $blueprintDir = $this->source ?? BASE_PATH . "/blueprint-templates/{$blueprintNameKebab}";
 
-        if (is_dir($starterDir)) {
-            $this->error("Starter '{$starterNameKebab}' already exists at: {$starterDir}");
+        if (is_dir($blueprintDir)) {
+            $this->error("Blueprint '{$blueprintNameKebab}' already exists at: {$blueprintDir}");
             return 1;
         }
 
         $displayName = $this->templateGenerator->askQuestion(
-            'Starter display name: ',
-            $this->toPascalCase($starterNameKebab) . ' Starter'
+            'Blueprint display name: ',
+            $this->toPascalCase($blueprintNameKebab) . ' Blueprint'
         );
 
         $description = $this->templateGenerator->askQuestion(
@@ -69,9 +69,9 @@ final class StarterScaffoldCommand extends Command
             'latest'
         );
 
-        $this->info("Scaffolding starter '{$starterNameKebab}'...");
+        $this->info("Scaffolding blueprint '{$blueprintNameKebab}'...");
 
-        $baseDir = "{$starterDir}/base";
+        $baseDir = "{$blueprintDir}/base";
 
         $dirs = [
             "{$baseDir}/app",
@@ -194,13 +194,13 @@ HTACCESS
 
         $this->writeConfigFiles($baseDir);
         $this->writeEnvFiles($baseDir);
-        $this->writeMetaFiles($baseDir, $starterNameKebab, $description);
+        $this->writeMetaFiles($baseDir, $blueprintNameKebab, $description);
 
-        $installSource = BASE_PATH . '/starter-templates/blank/install.php';
+        $installSource = BASE_PATH . '/blueprint-templates/blank/install.php';
         if (file_exists($installSource)) {
             copy($installSource, "{$baseDir}/install.php");
         } else {
-            $installFallback = BASE_PATH . '/forge-starter/install.php';
+            $installFallback = BASE_PATH . '/forge-blueprint/install.php';
             if (file_exists($installFallback)) {
                 file_put_contents(
                     "{$baseDir}/install.php",
@@ -212,13 +212,13 @@ HTACCESS
         $configOptions = $this->collectConfigOptions();
         if (!empty($configOptions)) {
             file_put_contents(
-                "{$starterDir}/starter-config.json",
+                "{$blueprintDir}/blueprint-config.json",
                 json_encode(['options' => $configOptions], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n"
             );
 
             foreach ($configOptions as $optionDef) {
                 foreach ($optionDef['options'] as $choice) {
-                    $optionDir = "{$starterDir}/{$choice['value']}";
+                    $optionDir = "{$blueprintDir}/{$choice['value']}";
                     if (!is_dir($optionDir)) {
                         mkdir($optionDir, 0755, true);
                     }
@@ -229,16 +229,16 @@ HTACCESS
             $this->info('Config options scaffolded with empty subdirectories.');
         }
 
-        $relativePath = str_replace(BASE_PATH . '/', '', $starterDir);
-        $this->success("Starter '{$starterNameKebab}' scaffolded successfully at: {$starterDir}");
+        $relativePath = str_replace(BASE_PATH . '/', '', $blueprintDir);
+        $this->success("Blueprint '{$blueprintNameKebab}' scaffolded successfully at: {$blueprintDir}");
         $this->info("Next steps:");
         $this->info("  1. Edit {$relativePath}/base/forge.json to add modules");
         $this->info("  2. Populate option subdirectories with overlay files");
-        if (file_exists("{$starterDir}/starter-config.json")) {
-            $this->info("  3. Edit {$relativePath}/starter-config.json to refine options");
-            $this->info("  4. php forge.php dev:starter:version --name={$starterNameKebab}");
+        if (file_exists("{$blueprintDir}/blueprint-config.json")) {
+            $this->info("  3. Edit {$relativePath}/blueprint-config.json to refine options");
+            $this->info("  4. php forge.php dev:blueprint:version --name={$blueprintNameKebab}");
         } else {
-            $this->info("  2. php forge.php dev:starter:version --name={$starterNameKebab}");
+            $this->info("  2. php forge.php dev:blueprint:version --name={$blueprintNameKebab}");
         }
 
         return 0;
@@ -257,7 +257,7 @@ HTACCESS
 
         $this->line('');
         $this->info('── Define Config Options ──────────────────────────────');
-        $this->line('Each option is a choice point for users scaffolding this starter.');
+        $this->line('Each option is a choice point for users scaffolding this blueprint.');
         $this->line('Option values map to subdirectories that will be overlaid on base/.');
         $this->line('');
 
@@ -567,7 +567,7 @@ ENV;
         file_put_contents("{$dir}/env-example", $envContent);
     }
 
-    private function writeMetaFiles(string $dir, string $starterNameKebab, string $description): void
+    private function writeMetaFiles(string $dir, string $blueprintNameKebab, string $description): void
     {
         file_put_contents(
             "{$dir}/.forgeignore",
@@ -580,8 +580,8 @@ ENV;
         );
 
         file_put_contents("{$dir}/app/.gitignore", "");
-        file_put_contents("{$dir}/CHANGELOG.md", "# Changelog\n\nAll notable changes to this starter will be documented in this file.\n");
-        file_put_contents("{$dir}/README.md", "# {$starterNameKebab} Starter\n\n{$description}\n");
+        file_put_contents("{$dir}/CHANGELOG.md", "# Changelog\n\nAll notable changes to this blueprint will be documented in this file.\n");
+        file_put_contents("{$dir}/README.md", "# {$blueprintNameKebab} Blueprint\n\n{$description}\n");
         file_put_contents("{$dir}/LICENSE", "MIT License\n");
         file_put_contents("{$dir}/LICENSE-MIT.txt", "MIT License\n");
     }
