@@ -8,6 +8,7 @@ require_once __DIR__ . "/Attributes/Cache.php";
 
 use Forge\Core\Cache\Attributes\Cache;
 use Forge\Core\Cache\Traits\CacheTrait;
+use Forge\Core\Contracts\EventDispatcherInterface;
 use Forge\Core\DI\Container;
 use Forge\Exceptions\MissingServiceException;
 use ReflectionException;
@@ -230,13 +231,11 @@ final class CacheInterceptor
         ?array           $tags = null,
     ): void
     {
-        $eventDispatcher = \App\Modules\ForgeEvents\Services\EventDispatcher::class;
-        if (!class_exists($eventDispatcher)) {
+        try {
+            $dispatcher = Container::getInstance()->get(EventDispatcherInterface::class);
+        } catch (\Throwable) {
             return;
         }
-
-        /** @var \App\Modules\ForgeEvents\Services\EventDispatcher $dispatcher */
-        $dispatcher = Container::getInstance()->make($eventDispatcher);
 
         $eventClass = 'App\Modules\ForgeEvents\Events\CacheRefreshEvent';
 

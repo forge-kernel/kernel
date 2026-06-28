@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
+use Forge\Core\Contracts\EventDispatcherInterface;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\HookManager;
@@ -92,19 +93,17 @@ final class ServiceRegistrationCache
         }
 
         if (!empty($cache['event_listeners'])) {
-            $dispatcherClass = \App\Modules\ForgeEvents\Services\EventDispatcher::class;
-            if (class_exists($dispatcherClass)) {
-                try {
-                    $eventDispatcher = $container->get($dispatcherClass);
-                    foreach ($cache['event_listeners'] as $eventClass => $listeners) {
-                        foreach ($listeners as $listener) {
-                            $instance = $container->has($listener['class'])
-                                ? $container->get($listener['class'])
-                                : $container->make($listener['class']);
-                            $eventDispatcher->addListener($eventClass, [$instance, $listener['method']]);
-                        }
-                    }
-                } catch (\Throwable) {
+            try {
+                $eventDispatcher = $container->get(EventDispatcherInterface::class);
+            } catch (\Throwable) {
+                return;
+            }
+            foreach ($cache['event_listeners'] as $eventClass => $listeners) {
+                foreach ($listeners as $listener) {
+                    $instance = $container->has($listener['class'])
+                        ? $container->get($listener['class'])
+                        : $container->make($listener['class']);
+                    $eventDispatcher->addListener($eventClass, [$instance, $listener['method']]);
                 }
             }
         }

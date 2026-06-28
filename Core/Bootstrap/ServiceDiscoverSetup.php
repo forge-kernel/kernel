@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Bootstrap;
 
 use Forge\Core\Config\Config;
+use Forge\Core\Contracts\EventDispatcherInterface;
 use Forge\Core\DI\Attributes\Discoverable;
 use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\DI\Attributes\Service;
@@ -40,9 +41,8 @@ final class ServiceDiscoverSetup
             return;
         }
 
-        $eventDispatcherClass = 'App\Modules\ForgeEvents\Services\EventDispatcher';
-        $eventDispatcherService = class_exists($eventDispatcherClass) && $container->has($eventDispatcherClass)
-            ? $container->get($eventDispatcherClass)
+        $eventDispatcherService = $container->has(EventDispatcherInterface::class)
+            ? $container->get(EventDispatcherInterface::class)
             : null;
 
         $discoveryService = new AttributeDiscoveryService();
@@ -183,7 +183,7 @@ final class ServiceDiscoverSetup
      * @throws MissingServiceException
      * @throws ResolveParameterException
      */
-    private static function registerEventListeners(ReflectionClass $reflectionClass, object $eventDispatcher, Container $container, ?array &$cacheCollector = null): void
+    private static function registerEventListeners(ReflectionClass $reflectionClass, EventDispatcherInterface $eventDispatcher, Container $container, ?array &$cacheCollector = null): void
     {
         $eventListenerAttribute = 'App\Modules\ForgeEvents\Attributes\EventListener';
         $methods = ReflectionCacheService::getClassMethods($reflectionClass, ReflectionMethod::IS_PUBLIC);
