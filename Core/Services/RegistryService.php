@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Forge\Core\Services;
 
 use Forge\Core\Config\Environment;
-use Forge\Core\DI\Attributes\Service;
+use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Helpers\FileExistenceCache;
 
-#[Service]
+#[Injectable]
 final class RegistryService
 {
     public function __construct(

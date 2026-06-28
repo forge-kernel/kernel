@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Service;
+use Forge\Core\DI\Attributes\Injectable;
 
-#[Service]
+#[Injectable]
 final class RegistryReadmeService
 {
     public function __construct(

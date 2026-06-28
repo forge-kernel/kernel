@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Forge\Core\Services;
 
 use Forge\Core\Config\Config;
-use Forge\Core\DI\Attributes\Service;
+use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Session\SessionInterface;
 
-#[Service]
+#[Injectable]
 final class TokenManager
 {
     private const SESSION_KEY = '_csrf.tokens';
@@ -17,9 +17,8 @@ final class TokenManager
 
     public function __construct(
         private SessionInterface $session,
-        private Config           $config
-    )
-    {
+        private Config $config
+    ) {
         $this->appKey = $config->get('security.app_key', env('APP_KEY', 'your-secure-app-key'));
     }
 
@@ -54,7 +53,7 @@ final class TokenManager
             return false;
         }
 
-        $iat = (int)($bag[$intent]['issued_at'] ?? 0);
+        $iat = (int) ($bag[$intent]['issued_at'] ?? 0);
         if ($iat > 0 && $iat < (time() - 86400)) {
             unset($bag[$intent]);
             $this->session->set(self::SESSION_KEY, $bag);

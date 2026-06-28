@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Service;
+use Forge\Core\DI\Attributes\Injectable;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ZipArchive;
 
-#[Service]
+#[Injectable]
 final class ArchiveService
 {
     public function createZip(string $sourceDir, string $zipFilePath): bool
@@ -18,33 +18,32 @@ final class ArchiveService
         if ($zip->open($zipFilePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
             return false;
         }
-        
+
         $sourceDir = rtrim($sourceDir, '/');
-        
+
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($sourceDir),
             RecursiveIteratorIterator::LEAVES_ONLY
         );
-        
+
         foreach ($files as $name => $file) {
             if (!$file->isDir()) {
                 $filePath = $file->getRealPath();
                 $relativePath = substr($filePath, strlen($sourceDir) + 1);
-                
+
                 $zip->addFile($filePath, $relativePath);
             }
         }
-        
+
         return $zip->close();
     }
-    
+
     public function calculateIntegrity(string $filePath): string|bool
     {
         if (!file_exists($filePath)) {
             return false;
         }
-        
+
         return hash_file('sha256', $filePath);
     }
 }
-

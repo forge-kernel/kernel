@@ -16,6 +16,7 @@ use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ModuleAssetManager;
 use Forge\Core\Services\ServiceRegistrationCache;
+use ReflectionClass;
 
 #[Cli(
     command: 'cache:warm',
@@ -91,25 +92,6 @@ final class WarmCacheCommand extends Command
             $this->error("Failed to compile hooks: " . $e->getMessage());
         }
 
-        $this->info("Rebuilding router hooks...");
-
-        try {
-            $routerHookManagerClass = \App\Modules\ForgeRouter\Events\RouterHookManager::class;
-            if (class_exists($routerHookManagerClass)) {
-                $routerHookManagerClass::rebuild();
-
-                $routerHooksFile = BASE_PATH . '/storage/framework/cache/router_hooks.php';
-                if (FileExistenceCache::exists($routerHooksFile)) {
-                    $this->success("Router hooks rebuilt successfully.");
-                } else {
-                    $this->warning("Router hooks file was not created.");
-                }
-            } else {
-                $this->warning("RouterHookManager not available (ForgeRouter module not loaded).");
-            }
-        } catch (\Exception $e) {
-            $this->error("Failed to rebuild router hooks: " . $e->getMessage());
-        }
     }
 
     private function warmModuleAssets(): void
@@ -170,6 +152,8 @@ final class WarmCacheCommand extends Command
       }
 
       foreach ($warmers as $warmer) {
+        $name = (new ReflectionClass($warmer))->getShortName();
+        $this->info("  {$name}...");
         $warmer->warmCache();
       }
 

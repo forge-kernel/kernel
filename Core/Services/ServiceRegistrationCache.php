@@ -9,7 +9,9 @@ use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
+use Forge\Core\DI\Attributes\Injectable;
 
+#[Injectable]
 final class ServiceRegistrationCache
 {
     private const string CACHE_FILE = BASE_PATH . '/storage/framework/cache/service_registrations.php';

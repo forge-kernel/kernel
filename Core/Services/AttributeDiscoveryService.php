@@ -4,15 +4,13 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Discoverable;
-use Forge\Core\DI\Attributes\Migration;
-use Forge\Core\DI\Attributes\Service;
+use Forge\Core\DI\Attributes\Injectable;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionException;
 
-#[Service]
+#[Injectable]
 final class AttributeDiscoveryService
 {
     private const string CACHE_FILE = BASE_PATH . "/storage/framework/cache/attribute-discovery-cache.php";
@@ -27,7 +25,7 @@ final class AttributeDiscoveryService
 
     /**
      * Discover classes with specific attributes in given base paths
-     * 
+     *
      * @param array<string> $basePaths Base paths to scan (e.g., ['app', 'modules/ModuleName/src'])
      * @param array<string> $attributeClasses Attribute class names to search for
      * @param bool $filterResults When true, returns only classes matching the requested attributes.
@@ -37,7 +35,7 @@ final class AttributeDiscoveryService
      */
     public function discover(array $basePaths, array $attributeClasses, bool $filterResults = true): array
     {
-        $signature = md5(serialize($basePaths) . serialize($attributeClasses) . '|' . (int)$filterResults);
+        $signature = md5(serialize($basePaths) . serialize($attributeClasses) . '|' . (int) $filterResults);
         if (isset(self::$discoverCache[$signature])) {
             return self::$discoverCache[$signature];
         }
@@ -170,7 +168,7 @@ final class AttributeDiscoveryService
 
     /**
      * Get all classes with a specific attribute
-     * 
+     *
      * @param string $attributeClass Full class name of the attribute
      * @return array<string> Array of class names
      */
@@ -285,17 +283,21 @@ final class AttributeDiscoveryService
         foreach ($attributeClasses as $attributeClass) {
             $shortName = $this->getAttributeShortName($attributeClass);
             $fullNamespace = $attributeClass;
-            
-            if (strpos($contents, "#[$fullNamespace") !== false || 
-                strpos($contents, "#[\\$fullNamespace") !== false) {
+
+            if (
+                strpos($contents, "#[$fullNamespace") !== false ||
+                strpos($contents, "#[\\$fullNamespace") !== false
+            ) {
                 $hasAttribute = true;
                 break;
             }
 
             $namespaceParts = explode('\\', $fullNamespace);
             $className = end($namespaceParts);
-            if (preg_match('/use\s+' . preg_quote(str_replace('\\', '\\\\', $fullNamespace), '/') . '\s*;/', $contents) &&
-                (strpos($contents, "#[$className") !== false || strpos($contents, "#[\\$className") !== false)) {
+            if (
+                preg_match('/use\s+' . preg_quote(str_replace('\\', '\\\\', $fullNamespace), '/') . '\s*;/', $contents) &&
+                (strpos($contents, "#[$className") !== false || strpos($contents, "#[\\$className") !== false)
+            ) {
                 $hasAttribute = true;
                 break;
             }
@@ -411,10 +413,10 @@ final class AttributeDiscoveryService
     {
         $basePath = rtrim(str_replace('\\', '/', BASE_PATH), '/');
         $normalizedPath = str_replace('\\', '/', $filepath);
-        
+
         $relativePath = str_replace($basePath, '', $normalizedPath);
         $relativePath = ltrim($relativePath, '/');
-        
+
         $class = str_replace(['.php', '/'], ['', '\\'], $relativePath);
         $class = ltrim($class, '\\');
 
