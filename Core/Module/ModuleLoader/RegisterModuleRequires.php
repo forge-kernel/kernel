@@ -25,8 +25,13 @@ final class RegisterModuleRequires
     {
         $moduleName = $this->reflectionClass->getShortName();
         foreach ($this->reflectionClass->getAttributes(Requires::class) as $attribute) {
-            $requireInstance = $attribute->newInstance();
-            $this->moduleRequirements[$moduleName][$requireInstance->interface] = $requireInstance->version;
+            $instance = $attribute->newInstance();
+            if ($instance->interface !== null) {
+                $this->moduleRequirements[$moduleName]['interfaces'][$instance->interface] = $instance->version;
+            }
+            if ($instance->module !== null) {
+                $this->moduleRequirements[$moduleName]['modules'][$instance->module] = $instance->version;
+            }
         }
     }
 }

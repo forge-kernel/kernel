@@ -16,10 +16,20 @@ trait ModuleHelper
 
         $requirements = $this->moduleRequirements[$moduleName];
 
-        foreach ($requirements as $interface => $version) {
+        foreach ($requirements['interfaces'] ?? [] as $interface => $version) {
             if (!$this->container->has($interface)) {
                 throw new RuntimeException(
                     "Module '{$moduleName}' requires service '{$interface}' (version {$version}) which is not provided."
+                );
+            }
+        }
+
+        foreach ($requirements['modules'] ?? [] as $requiredModule => $versionConstraint) {
+            $moduleDirName = StringHelper::toPascalCase($requiredModule);
+            $modulePath = BASE_PATH . '/modules/' . $moduleDirName;
+            if (!is_dir($modulePath)) {
+                throw new RuntimeException(
+                    "Module '{$moduleName}' requires module '{$requiredModule}' (constraint: {$versionConstraint}) which is not installed."
                 );
             }
         }
