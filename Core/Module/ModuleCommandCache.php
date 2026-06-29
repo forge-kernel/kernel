@@ -9,7 +9,6 @@ use Forge\Core\Helpers\FileExistenceCache;
 final class ModuleCommandCache
 {
     private const CACHE_FILE = BASE_PATH . '/storage/framework/cache/module_command_map.php';
-    private const MODULES_PATH = BASE_PATH . '/modules';
 
     public static function getCacheFile(): string
     {
@@ -44,7 +43,7 @@ final class ModuleCommandCache
 
         $moduleMtimes = $cache['module_mtimes'] ?? [];
         foreach ($moduleMtimes as $moduleName => $cachedMtime) {
-            $dir = self::MODULES_PATH . '/' . $moduleName;
+            $dir = self::getModulesDir() . '/' . $moduleName;
             if (!is_dir($dir)) {
                 return false;
             }
@@ -55,6 +54,15 @@ final class ModuleCommandCache
         }
 
         return true;
+    }
+
+    private static function getModulesDir(): string
+    {
+        static $dir = null;
+        if ($dir === null) {
+            $dir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
+        }
+        return $dir;
     }
 
     public static function getModulesWithCommands(): array
@@ -70,7 +78,7 @@ final class ModuleCommandCache
     {
         $moduleMtimes = [];
         foreach ($modulesWithCommands as $moduleName) {
-            $dir = self::MODULES_PATH . '/' . $moduleName;
+            $dir = self::getModulesDir() . '/' . $moduleName;
             if (is_dir($dir)) {
                 $moduleMtimes[$moduleName] = @filemtime($dir) ?: 0;
             }

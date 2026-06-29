@@ -165,7 +165,7 @@ trait CliGenerator
 
         $baseNamespace = $this->type === 'app'
             ? 'App'
-            : "App\\Modules\\{$this->module}";
+            : "Modules\\{$this->module}";
 
         $parsed = $this->parseFolderFilenameForClass($this->name);
         $nameFolder = $parsed['folder'];

@@ -22,9 +22,10 @@ final class VersionService
 
     private function findModuleEntryFile(string $moduleName): ?string
     {
+        $modulesDir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         $possiblePaths = [
-            BASE_PATH . "/modules/{$moduleName}/src/{$moduleName}Module.php",
-            BASE_PATH . "/modules/{$moduleName}/src/{$moduleName}.php",
+            "$modulesDir/$moduleName/src/{$moduleName}Module.php",
+            "$modulesDir/$moduleName/src/{$moduleName}.php",
         ];
 
         foreach ($possiblePaths as $path) {
@@ -33,9 +34,9 @@ final class VersionService
             }
         }
 
-        $dir = BASE_PATH . "/modules/{$moduleName}/src";
+        $dir = "$modulesDir/$moduleName/src";
         if (is_dir($dir)) {
-            $files = glob($dir . "/*Module.php");
+            $files = glob("$dir/*Module.php");
             if (!empty($files)) {
                 return $files[0];
             }
@@ -125,9 +126,10 @@ final class VersionService
 
     public function updateModuleEntryFileVersion(string $moduleName, string $version): void
     {
+        $modulesDir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         $possiblePaths = [
-            BASE_PATH . "/modules/{$moduleName}/src/{$moduleName}Module.php",
-            BASE_PATH . "/modules/{$moduleName}/src/{$moduleName}.php",
+            "$modulesDir/$moduleName/src/{$moduleName}Module.php",
+            "$modulesDir/$moduleName/src/{$moduleName}.php",
         ];
 
         $entryFilePath = null;
@@ -139,9 +141,9 @@ final class VersionService
         }
 
         if (!$entryFilePath) {
-            $dir = BASE_PATH . "/modules/{$moduleName}/src";
+            $dir = "$modulesDir/$moduleName/src";
             if (is_dir($dir)) {
-                $files = glob($dir . "/*Module.php");
+                $files = glob("$dir/*Module.php");
                 if (!empty($files)) {
                     $entryFilePath = $files[0];
                 }

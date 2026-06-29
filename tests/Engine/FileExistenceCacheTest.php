@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Forge\tests\Engine;
 
-use App\Modules\ForgeTesting\Attributes\AfterEach;
-use App\Modules\ForgeTesting\Attributes\BeforeEach;
-use App\Modules\ForgeTesting\Attributes\Group;
-use App\Modules\ForgeTesting\Attributes\Test;
-use App\Modules\ForgeTesting\TestCase;
+use Modules\ForgeTesting\Attributes\AfterEach;
+use Modules\ForgeTesting\Attributes\BeforeEach;
+use Modules\ForgeTesting\Attributes\Group;
+use Modules\ForgeTesting\Attributes\Test;
+use Modules\ForgeTesting\TestCase;
 use Forge\Core\Helpers\FileExistenceCache;
 
 #[Group('helpers')]

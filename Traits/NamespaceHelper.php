@@ -19,24 +19,23 @@ trait NamespaceHelper
 
   private function registerModuleAutoloadPath(string $moduleName, string $modulePath): void
   {
-    $moduleNamespacePrefix = 'App\\Modules\\' . str_replace('-', '\\', $moduleName);
-
     $container = \Forge\Core\DI\Container::getInstance();
+    $modulesNamespace = 'Modules';
     $basePath = $modulePath . '/src';
 
     if ($container->has(\Forge\Core\Structure\StructureResolver::class)) {
       try {
         $structureResolver = $container->get(\Forge\Core\Structure\StructureResolver::class);
+        $modulesNamespace = $structureResolver->getModulesNamespace();
         $controllersPath = $structureResolver->getModulePath($moduleName, 'controllers');
-        if (str_starts_with($controllersPath, 'src/')) {
-          $basePath = $modulePath . '/src';
-        } else {
+        if (!str_starts_with($controllersPath, 'src/')) {
           $basePath = $modulePath;
         }
       } catch (\InvalidArgumentException $e) {
       }
     }
 
+    $moduleNamespacePrefix = $modulesNamespace . '\\' . str_replace('-', '\\', $moduleName);
     Autoloader::addPath($moduleNamespacePrefix . '\\', $basePath);
   }
 

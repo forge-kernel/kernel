@@ -45,6 +45,7 @@ final class Container
   private array $interfaceMapCompiled = [];
   private array $interfaceIndex = [];
   private bool $interfaceIndexDirty = true;
+  private ?string $moduleNamespacePrefix = null;
 
   private function __construct()
   {
@@ -149,7 +150,7 @@ final class Container
       return $this->instances[$abstract];
     }
 
-    if (str_starts_with($abstract, "App\\Modules\\")) {
+    if (str_starts_with($abstract, $this->getModuleNamespacePrefix())) {
       $this->loadModuleByClass($abstract);
     }
 
@@ -177,9 +178,18 @@ final class Container
     throw new MissingServiceException($abstract);
   }
 
+  private function getModuleNamespacePrefix(): string
+  {
+    if ($this->moduleNamespacePrefix === null) {
+      $this->moduleNamespacePrefix = \Forge\Core\Structure\StructureResolver::resolveModulesNamespace() . '\\';
+    }
+    return $this->moduleNamespacePrefix;
+  }
+
   private function loadModuleByClass(string $class): void
   {
-    preg_match("/^(App\\\\Modules\\\\[^\\\\]+)/", $class, $matches);
+    $ns = preg_quote($this->getModuleNamespacePrefix(), '/');
+    preg_match("/^({$ns}[^\\\\]+)/", $class, $matches);
     if (!empty($matches[1])) {
       $namespacePrefix = $matches[1];
       try {

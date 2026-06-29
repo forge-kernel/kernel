@@ -12,10 +12,18 @@ final class HelperDiscoverSetup
 {
     private const string HELPER_MAP_CACHE_FILE =
         BASE_PATH . "/storage/framework/cache/helper-map.php";
-    private const array HELPER_SEARCH_PATHS = [
-        BASE_PATH . "/app/Support",
-        BASE_PATH . "/modules",
-    ];
+    private static array $helperSearchPaths = [];
+
+    private static function getHelperSearchPaths(): array
+    {
+        if (empty(self::$helperSearchPaths)) {
+            self::$helperSearchPaths = [
+                BASE_PATH . '/app/Support',
+                BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot(),
+            ];
+        }
+        return self::$helperSearchPaths;
+    }
 
     /**
      * Discovers, caches, and includes all helper files.
@@ -116,7 +124,7 @@ final class HelperDiscoverSetup
         $files = [];
         $scannedDirs = [];
 
-        foreach (self::HELPER_SEARCH_PATHS as $directory) {
+        foreach (self::getHelperSearchPaths() as $directory) {
             if (is_dir($directory)) {
                 if (str_ends_with($directory, '/Support')) {
                     $files = array_merge($files, self::scanDirectory($directory));

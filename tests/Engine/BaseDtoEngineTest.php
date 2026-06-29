@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace Forge\tests\Engine;
 
-use App\Modules\ForgeTesting\Attributes\Group;
-use App\Modules\ForgeTesting\Attributes\Test;
-use App\Modules\ForgeTesting\TestCase;
+use Modules\ForgeTesting\Attributes\Group;
+use Modules\ForgeTesting\Attributes\Test;
+use Modules\ForgeTesting\TestCase;
 use Forge\Core\Dto\BaseDto;
 use Forge\tests\Engine\Fixtures\DummyDto;
 

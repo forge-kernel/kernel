@@ -153,6 +153,6 @@ if (!function_exists("tap")) {
 if (!function_exists('dd')) {
     function dd(...$vars): void
     {
-        Debuger::dumpAndExit($vars);
+        Debuger::dumpAndExit(...$vars);
     }
 }

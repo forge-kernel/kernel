@@ -258,7 +258,7 @@ final class Autoloader
         }
 
         // Only cache application classes and frequently loaded classes
-        return str_starts_with($class, 'App\\');
+        return str_starts_with($class, 'App\\') || str_starts_with($class, 'Modules\\');
     }
 
     private static function cleanupClassMapping(string $class): void

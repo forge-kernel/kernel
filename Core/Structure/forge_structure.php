@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'modules_root' => 'modules',
+    'modules_namespace' => 'Modules',
     'app' => [
         'controllers' => 'app/Controllers',
         'services' => 'app/Services',

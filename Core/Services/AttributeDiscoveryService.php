@@ -601,10 +601,9 @@ final class AttributeDiscoveryService
         } elseif (str_starts_with($class, 'app\\')) {
             $class = str_replace('app\\', 'App\\', $class);
         } elseif (str_starts_with($class, 'modules\\')) {
-            $class = str_replace('modules\\', 'App\\Modules\\', $class);
-            // Remove 'src' from path if present
+            $modulesNamespace = \Forge\Core\Structure\StructureResolver::resolveModulesNamespace();
+            $class = str_replace('modules\\', $modulesNamespace . '\\', $class);
             $class = str_replace('\\src\\', '\\', $class);
-            $class = preg_replace('/^App\\\\Modules\\\\([^\\\\]+)\\\\src\\\\/', 'App\\Modules\\$1\\', $class);
         }
 
         // Seeder and migration files use a timestamp prefix in the filename

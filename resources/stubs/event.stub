@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace {{ eventNamespace }};
 
-use App\Modules\ForgeEvents\Attributes\Event;
-use App\Modules\ForgeEvents\Enums\QueuePriority;
+use Modules\ForgeEvents\Attributes\Event;
+use Modules\ForgeEvents\Enums\QueuePriority;
 
 #[Event(queue: '{{ eventQueueName }}', maxRetries: 5, delay: '1s', priority: QueuePriority::NORMAL)]
 final readonly class {{ eventName }}Event

@@ -32,7 +32,7 @@ final class OptimizedDirectoryScanner
             return $cached;
         }
 
-        $modulesPath = BASE_PATH . '/modules';
+        $modulesPath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         if (!FileExistenceCache::isDir($modulesPath)) {
             return [];
         }
@@ -219,7 +219,7 @@ final class OptimizedDirectoryScanner
     {
         $mtimes = [];
 
-        $modulesPath = BASE_PATH . '/modules';
+        $modulesPath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         if (is_dir($modulesPath)) {
             $modulesMtime = @filemtime($modulesPath);
             if ($modulesMtime !== false) {

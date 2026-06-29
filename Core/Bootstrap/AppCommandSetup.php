@@ -87,7 +87,8 @@ final class AppCommandSetup
             }
 
             // Exclude module classes; they are handled by RegisterModuleCommand.
-            if (str_starts_with($className, 'App\\Modules\\')) {
+            $moduleNs = \Forge\Core\Structure\StructureResolver::resolveModulesNamespace();
+            if (str_starts_with($className, $moduleNs . '\\')) {
                 continue;
             }
 

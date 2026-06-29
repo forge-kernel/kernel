@@ -24,8 +24,8 @@ trait CacheTrait
 
         $class = $payload['c'];
 
-        $paginatorClass = 'App\Modules\ForgeSqlOrm\ORM\Paginator';
-        $modelClass = 'App\Modules\ForgeSqlOrm\ORM\Model';
+        $paginatorClass = 'Modules\ForgeSqlOrm\ORM\Paginator';
+        $modelClass = 'Modules\ForgeSqlOrm\ORM\Model';
 
         if ($class === $paginatorClass) {
             return $this->reconstructPaginator($payload['d']);
@@ -47,7 +47,7 @@ trait CacheTrait
     {
         $meta = $data['meta'] ?? [];
 
-        $paginatorClass = 'App\Modules\ForgeSqlOrm\ORM\Paginator';
+        $paginatorClass = 'Modules\ForgeSqlOrm\ORM\Paginator';
 
         return new $paginatorClass(
             items: $data['data'] ?? [],

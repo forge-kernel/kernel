@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Modules\{{ moduleName }};
+namespace Modules\{{ moduleName }};
 
 use Forge\Core\DI\Container;
 use Forge\Core\Module\Attributes\Compatibility;
@@ -12,8 +12,8 @@ use Forge\Core\Module\Attributes\PostInstall;
 use Forge\Core\Module\Attributes\PostUninstall;
 use Forge\Core\Module\Attributes\Provides;
 use Forge\Core\Module\Attributes\Repository;
-use App\Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
-use App\Modules\{{ moduleName }}\Services\{{ serviceName }};
+use Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
+use Modules\{{ moduleName }}\Services\{{ serviceName }};
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\Core\DI\Attributes\Service;

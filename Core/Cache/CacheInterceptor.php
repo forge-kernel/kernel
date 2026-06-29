@@ -237,7 +237,7 @@ final class CacheInterceptor
             return;
         }
 
-        $eventClass = 'App\Modules\ForgeEvents\Events\CacheRefreshEvent';
+        $eventClass = 'Modules\ForgeEvents\Events\CacheRefreshEvent';
 
         $dispatcher->dispatch(
             new $eventClass(

@@ -35,7 +35,7 @@ final class ErrorHandlerSetup
         );
         error_reporting(E_ALL);
 
-        $errorHandlerInterface = 'App\Modules\ForgeRouter\Contracts\ErrorHandlerInterface';
+        $errorHandlerInterface = 'Modules\ForgeRouter\Contracts\ErrorHandlerInterface';
         $errorHandler = null;
 
         if (interface_exists($errorHandlerInterface)) {

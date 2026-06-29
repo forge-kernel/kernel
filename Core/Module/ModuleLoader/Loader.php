@@ -137,7 +137,7 @@ final class Loader
             return;
         }
 
-        $moduleDirectory = BASE_PATH . "/modules";
+        $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         $modules = ModuleFileDiscovery::discoverModulesInDirectory(
             $moduleDirectory,
         );
@@ -161,7 +161,7 @@ final class Loader
         if ($cacheMtime === false) {
             return false;
         }
-        $modulesPath = BASE_PATH . '/modules';
+        $modulesPath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         if (!is_dir($modulesPath)) {
             return false;
         }
@@ -296,7 +296,7 @@ final class Loader
 
     public function loadModules(): void
     {
-        $moduleDirectory = BASE_PATH . "/modules";
+        $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
 
         if (!$this->isRegistryStale()) {
             $this->registerAutoloadPathsFromRegistry();
@@ -339,7 +339,7 @@ final class Loader
             return true;
         }
 
-        $moduleDirectory = BASE_PATH . "/modules";
+        $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         if (!is_dir($moduleDirectory)) {
             return true;
         }

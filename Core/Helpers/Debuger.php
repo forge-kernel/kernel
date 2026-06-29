@@ -2,7 +2,6 @@
 
 namespace Forge\Core\Helpers;
 
-use Forge\Core\DI\Container;
 use ReflectionClass;
 
 final class Debuger
@@ -81,18 +80,21 @@ final class Debuger
 		}
 	CSS;
 
-    public function __construct()
-    {
-    }
-
     public static function printPre(...$vars): void
     {
-        echo "<pre>";
-        foreach ($vars as $var) {
-            print_r($var);
-            echo '<br />';
+        if (PHP_SAPI === 'cli') {
+            foreach ($vars as $var) {
+                print_r($var);
+                echo "\n";
+            }
+        } else {
+            echo "<pre>";
+            foreach ($vars as $var) {
+                print_r($var);
+                echo '<br />';
+            }
+            echo "</pre></div>";
         }
-        echo "</pre></div>";
         die(1);
     }
 
@@ -105,26 +107,34 @@ final class Debuger
      */
     public static function dumpAndExit(...$vars): void
     {
-        $fileContent = '';
-        $cssToUse = empty($fileContent) ? self::DEFAULT_DD_CSS : $fileContent;
+        $caller = self::findCaller();
+        $isCli = PHP_SAPI === 'cli';
 
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
-        $callInfo = null;
-
-        if (isset($backtrace[0])) {
-            $call = $backtrace[0];
-            $file = isset($call['file']) ? $call['file'] : 'unknown file';
-            $line = isset($call['line']) ? $call['line'] : 'unknown line';
-
-            $filePath = $file ?? null;
-            if (strpos($filePath, BASE_PATH) === 0) {
-                $filePath = substr($filePath, strlen(BASE_PATH));
+        if ($isCli) {
+            if ($caller !== null) {
+                $filePath = $caller['file'];
+                if (defined('BASE_PATH') && str_starts_with($filePath, BASE_PATH)) {
+                    $filePath = substr($filePath, strlen(BASE_PATH) + 1);
+                }
+                echo "\n\033[90mdd() called from \033[1m{$filePath}\033[0m:\033[1m{$caller['line']}\033[0m\n\n";
             }
-
-            $callInfo = "<div class='dd-trace'><code>Debuger::dumAndExit() called from <span class='dd-trace-file'>" . e($filePath) . "</span>:<span class='dd-trace-line'>" . $line . "</span></code></div>\n";
+            foreach ($vars as $var) {
+                print_r($var);
+                echo "\n";
+            }
+            die(1);
         }
 
-        echo "<style>\n" . $cssToUse . "\n</style>";
+        $callInfo = null;
+        if ($caller !== null) {
+            $filePath = $caller['file'];
+            if (defined('BASE_PATH') && str_starts_with($filePath, BASE_PATH)) {
+                $filePath = substr($filePath, strlen(BASE_PATH));
+            }
+            $callInfo = "<div class='dd-trace'><code>Debuger::dumpAndExit() called from <span class='dd-trace-file'>" . e($filePath) . "</span>:<span class='dd-trace-line'>" . $caller['line'] . "</span></code></div>\n";
+        }
+
+        echo "<style>\n" . self::DEFAULT_DD_CSS . "\n</style>";
         echo "<div class='dd-container'>";
 
         if ($callInfo) {
@@ -137,6 +147,26 @@ final class Debuger
         }
         echo "</pre></div>";
         die(1);
+    }
+
+    private static function findCaller(): ?array
+    {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
+
+        foreach ($trace as $frame) {
+            if (!isset($frame['file'])) {
+                continue;
+            }
+            if (isset($frame['class']) && $frame['class'] === self::class) {
+                continue;
+            }
+            if (str_ends_with($frame['file'], 'helpers.php')) {
+                continue;
+            }
+            return $frame;
+        }
+
+        return $trace[0] ?? null;
     }
 
     /**
@@ -211,71 +241,18 @@ final class Debuger
         return "<span class='unknown'>" . htmlspecialchars(print_r($var, true)) . "</span>";
     }
 
-    /**
-     * Log messages to the debugbar
-     *
-     * @param mixed $message
-     * @param string $label
-     *
-     * @return void
-     */
-    public static function message(mixed $message, string $label = 'info'): void
-    {
-        if (class_exists(\App\Modules\ForgeDebugbar\DebugBar::class)) {
-            if (env('APP_ENV', false)) {
-                $messageCollector = Container::getInstance()->get(\App\Modules\ForgeDebugbar\Collectors\MessageCollector::class);
-                $messageCollector::instance()->addMessage($message, $label);
-            }
-        }
-    }
-
-    public static function logException(\Throwable $exception): void
-    {
-        if (class_exists(\App\Modules\ForgeDebugbar\Collectors\ExceptionCollector::class)) {
-            if (env('APP_ENV', false)) {
-                $exceptionCollector = Container::getInstance()->get(\App\Modules\ForgeDebugbar\Collectors\ExceptionCollector::class);
-                $exceptionCollector::instance()->addException($exception);
-            }
-        }
-    }
-
-    /**
-     * Track new event during request lifecycle
-     *
-     * @param string $name
-     * @param string $label
-     * @param array $data
-     *
-     * @return void
-     */
-    // public static function addEvent(string $name, string $label, array $data = []): void
-    // {
-    //     if (class_exists(TimelineCollector::class)) {
-    //         if (filter_var($_ENV["FORGE_APP_DEBUG"] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-    //             /** @var TimelineCollector $timelineCollector */
-    //             $timelineCollector = Container::getContainer()->get(TimelineCollector::class);
-    //             $timelineCollector::instance()->addEvent($name, $label, $data);
-    //         }
-    //     }
-    // }
-
     public static function backtraceOrigin(): string
     {
         $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 4);
 
-        $origin = 'Unknown Origin';
-
         foreach ($trace as $frame) {
             if (isset($frame['class']) && $frame['class'] !== self::class) {
-                if (strpos($frame['class'], 'Forge\\Modules\\ForgeDebugbar') === 0) {
-                    continue;
-                }
-
-                $class = $frame['class'] ?? 'unknown class';
-                $function = $frame['function'] ?? 'unknown function';
-                $origin = "{$class}@{$function}";
+                $class = $frame['class'] ?? 'unknown';
+                $function = $frame['function'] ?? 'unknown';
+                return "{$class}@{$function}";
             }
         }
-        return $origin;
+
+        return 'Unknown Origin';
     }
 }

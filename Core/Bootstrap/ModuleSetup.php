@@ -228,7 +228,7 @@ final class ModuleSetup
             return true;
         }
 
-        $modulesPath = BASE_PATH . "/modules";
+        $modulesPath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
         if (!is_dir($modulesPath)) {
             return false;
         }
