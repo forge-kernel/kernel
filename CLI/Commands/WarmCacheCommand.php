@@ -13,6 +13,7 @@ use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Core\Module\ModuleCommandCache;
+use Forge\Core\Bootstrap\OptimizedDirectoryScanner;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ModuleAssetManager;
 use Forge\Core\Services\ServiceRegistrationCache;
@@ -133,6 +134,19 @@ final class WarmCacheCommand extends Command
             if (FileExistenceCache::exists($cacheFile)) {
                 $discoveryService->clearCache();
             }
+
+            $config = $this->container->get(\Forge\Core\Config\Config::class);
+            $basePaths = OptimizedDirectoryScanner::getServiceDiscoveryPaths($config);
+
+            $attributeClasses = [
+                \Forge\Core\DI\Attributes\Service::class,
+                \Forge\Core\DI\Attributes\Discoverable::class,
+                \Forge\Core\DI\Attributes\Injectable::class,
+                \Forge\Core\Module\Attributes\LifecycleHook::class,
+            ];
+
+            $discoveryService->discover($basePaths, $attributeClasses, false);
+
             $this->success("Attribute discovery cache warmed successfully.");
         } catch (\Exception $e) {
             $this->error("Failed to warm attribute discovery cache: " . $e->getMessage());

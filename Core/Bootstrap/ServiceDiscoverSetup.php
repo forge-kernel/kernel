@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Forge\Core\Bootstrap;
 
 use Forge\Core\Config\Config;
-use Forge\Core\Contracts\EventDispatcherInterface;
 use Forge\Core\DI\Attributes\Discoverable;
 use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\DI\Attributes\Service;
@@ -41,10 +40,6 @@ final class ServiceDiscoverSetup
             return;
         }
 
-        $eventDispatcherService = $container->has(EventDispatcherInterface::class)
-            ? $container->get(EventDispatcherInterface::class)
-            : null;
-
         $discoveryService = new AttributeDiscoveryService();
         $basePaths = self::getBasePaths($container);
 
@@ -52,6 +47,7 @@ final class ServiceDiscoverSetup
             Service::class,
             Discoverable::class,
             Injectable::class,
+            LifecycleHook::class,
         ];
 
         $classMap = $discoveryService->discover($basePaths, $attributeClasses, false);
@@ -75,7 +71,6 @@ final class ServiceDiscoverSetup
         ReflectionCacheService::preloadClassReflections($classNames);
 
         $cacheServices = [];
-        $cacheEventListeners = [];
         $cacheLifecycleHooks = [];
 
         foreach ($classMap as $className => $metadata) {
@@ -117,10 +112,6 @@ final class ServiceDiscoverSetup
                     }
                 }
 
-                if ($eventDispatcherService) {
-                    self::registerEventListeners($reflectionClass, $eventDispatcherService, $container, $cacheEventListeners);
-                }
-
                 self::registerServiceLifecycleHooks($reflectionClass, $container, $cacheLifecycleHooks);
             } catch (ReflectionException $e) {
 
@@ -129,7 +120,7 @@ final class ServiceDiscoverSetup
         self::generateLegacyClassMapCache($classMap);
 
         $fullPaths = array_map(fn(string $p): string => BASE_PATH . '/' . ltrim($p, '/'), $basePaths);
-        ServiceRegistrationCache::buildAndSave($cacheServices, [], $cacheEventListeners, $cacheLifecycleHooks, $fullPaths);
+        ServiceRegistrationCache::buildAndSave($cacheServices, [], [], $cacheLifecycleHooks, $fullPaths);
 
         // Save reflection cache for next request
         ReflectionCacheService::saveCache();
@@ -175,37 +166,6 @@ final class ServiceDiscoverSetup
             self::hasServiceAttribute($reflectionClass)
         ) {
             $container->register($reflectionClass->getName());
-        }
-    }
-
-    /**
-     * @throws ReflectionException
-     * @throws MissingServiceException
-     * @throws ResolveParameterException
-     */
-    private static function registerEventListeners(ReflectionClass $reflectionClass, EventDispatcherInterface $eventDispatcher, Container $container, ?array &$cacheCollector = null): void
-    {
-        $eventListenerAttribute = 'App\Modules\ForgeEvents\Attributes\EventListener';
-        $methods = ReflectionCacheService::getClassMethods($reflectionClass, ReflectionMethod::IS_PUBLIC);
-        foreach ($methods as $method) {
-            $attributes = ReflectionCacheService::getMethodAttributes($method, $eventListenerAttribute);
-            foreach ($attributes as $attribute) {
-                $listenerAttributeInstance = $attribute->newInstance();
-                $eventClass = $listenerAttributeInstance->eventClass;
-
-                $listenerInstance = $container->has($reflectionClass->getName())
-                    ? $container->get($reflectionClass->getName())
-                    : $reflectionClass->newInstance();
-
-                $eventDispatcher->addListener($eventClass, [$listenerInstance, $method->getName()]);
-
-                if ($cacheCollector !== null) {
-                    $cacheCollector[$eventClass][] = [
-                        'class' => $reflectionClass->getName(),
-                        'method' => $method->getName(),
-                    ];
-                }
-            }
         }
     }
 

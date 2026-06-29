@@ -41,19 +41,46 @@ final class AttributeDiscoveryService
         }
 
         $cache = $this->loadCache();
-        $scannedPathAttributes = $cache['metadata']['scanned_attributes'] ?? [];
 
         // If cache already covers the requested paths and attributes, return it.
-        if ($this->isCacheValid($cache, $basePaths, $attributeClasses)) {
+        if ($this->isCacheFullyValid($cache, $basePaths, $attributeClasses)) {
             $classMap = $cache['class_map'] ?? [];
             return self::$discoverCache[$signature] = $filterResults
                 ? $this->filterByAttributes($classMap, $attributeClasses)
                 : $classMap;
         }
 
-        // Scan for the union of requested attributes and any attributes previously
-        // scanned on these paths. This prevents losing attribute data when a path
-        // is rescanned for a different attribute set.
+        // If only new attributes are requested (dirs unchanged), do additive scan.
+        // Otherwise, do a full filesystem scan.
+        if ($this->areDirsValid($cache, $basePaths) && !empty($cache['scanned_files'] ?? [])) {
+            $this->additiveScan($cache, $basePaths, $attributeClasses);
+        } else {
+            $this->fullScan($cache, $basePaths, $attributeClasses);
+        }
+
+        // Update scanned_attributes metadata
+        foreach ($basePaths as $basePath) {
+            $cache['metadata']['scanned_attributes'][$basePath] = array_values(array_unique(array_merge(
+                $cache['metadata']['scanned_attributes'][$basePath] ?? [],
+                $attributeClasses,
+            )));
+        }
+
+        $this->saveCache($cache);
+
+        $finalClassMap = $cache['class_map'] ?? [];
+        return self::$discoverCache[$signature] = $filterResults
+            ? $this->filterByAttributes($finalClassMap, $attributeClasses)
+            : $finalClassMap;
+    }
+
+    /**
+     * Full filesystem scan: walk all base paths, check each file for attributes.
+     */
+    private function fullScan(array &$cache, array $basePaths, array $attributeClasses): void
+    {
+        $scannedPathAttributes = $cache['metadata']['scanned_attributes'] ?? [];
+
         $attributesToScan = $attributeClasses;
         foreach ($basePaths as $basePath) {
             if (isset($scannedPathAttributes[$basePath])) {
@@ -77,24 +104,158 @@ final class AttributeDiscoveryService
 
         $this->cleanupStaleEntries($cache, $scannedFiles, $basePaths);
 
-        $finalClassMap = array_merge($cache['class_map'] ?? [], $newClassMap);
-        $cache['class_map'] = $finalClassMap;
+        $cache['class_map'] = array_merge($cache['class_map'] ?? [], $newClassMap);
         $cache['metadata']['last_scan'] = time();
         $cache['metadata']['version'] = 1;
         $cache['scanned_dirs'] = $scannedDirs;
+        $cache['scanned_files'] = array_values(array_unique(array_merge(
+            $cache['scanned_files'] ?? [],
+            $scannedFiles,
+        )));
+    }
 
+    /**
+     * Additive scan: only check previously-scanned files for new attributes.
+     * Skips the filesystem walk (RecursiveDirectoryIterator) when only new
+     * attribute classes are requested and no files have changed.
+     */
+    private function additiveScan(array &$cache, array $basePaths, array $attributeClasses): void
+    {
+        $scannedPathAttributes = $cache['metadata']['scanned_attributes'] ?? [];
+
+        $newAttributes = $attributeClasses;
         foreach ($basePaths as $basePath) {
-            $cache['metadata']['scanned_attributes'][$basePath] = array_values(array_unique(array_merge(
-                $cache['metadata']['scanned_attributes'][$basePath] ?? [],
-                $attributeClasses,
-            )));
+            if (isset($scannedPathAttributes[$basePath])) {
+                $newAttributes = array_diff($newAttributes, $scannedPathAttributes[$basePath]);
+            }
         }
 
-        $this->saveCache($cache);
+        if (empty($newAttributes)) {
+            return;
+        }
 
-        return self::$discoverCache[$signature] = $filterResults
-            ? $this->filterByAttributes($finalClassMap, $attributeClasses)
-            : $finalClassMap;
+        $newAttributes = array_values($newAttributes);
+
+        foreach ($cache['scanned_files'] ?? [] as $filepath) {
+            if (!file_exists($filepath)) {
+                continue;
+            }
+
+            $currentMtime = @filemtime($filepath);
+            if ($currentMtime === false) {
+                continue;
+            }
+
+            $className = $this->fileToClass($filepath);
+            $cachedEntry = $cache['class_map'][$className] ?? null;
+
+            // File is already in class_map with current mtime, check for new attributes
+            if ($cachedEntry && $cachedEntry['mtime'] === $currentMtime) {
+                $hasNewAttr = false;
+                foreach ($newAttributes as $newAttr) {
+                    if (!in_array($newAttr, $cachedEntry['attributes'] ?? [], true)) {
+                        $hasNewAttr = true;
+                        break;
+                    }
+                }
+
+                if (!$hasNewAttr) {
+                    continue;
+                }
+            }
+
+            // Re-check file for new attributes
+            $attributesFound = $this->checkFileAttributes($filepath, $newAttributes, $currentMtime);
+            if (!empty($attributesFound)) {
+                if ($cachedEntry) {
+                    $cachedEntry['attributes'] = array_values(array_unique(array_merge(
+                        $cachedEntry['attributes'],
+                        $attributesFound,
+                    )));
+                    $cache['class_map'][$className] = $cachedEntry;
+                } else {
+                    $cache['class_map'][$className] = [
+                        'file' => $filepath,
+                        'mtime' => $currentMtime,
+                        'attributes' => $attributesFound,
+                    ];
+                }
+            }
+        }
+
+        $cache['metadata']['last_scan'] = time();
+    }
+
+    /**
+     * Check a single file for specific attributes (string-match + reflection).
+     * Returns the list of attribute classes found.
+     */
+    private function checkFileAttributes(string $filepath, array $attributeClasses, int $mtime): array
+    {
+        $contents = @file_get_contents($filepath);
+        if ($contents === false) {
+            return [];
+        }
+
+        $hasAttribute = false;
+        foreach ($attributeClasses as $attributeClass) {
+            $fullNamespace = $attributeClass;
+            $namespaceParts = explode('\\', $fullNamespace);
+            $shortName = end($namespaceParts);
+
+            if (
+                strpos($contents, "#[$fullNamespace") !== false ||
+                strpos($contents, "#[\\$fullNamespace") !== false ||
+                strpos($contents, "#[$shortName") !== false ||
+                strpos($contents, "#[\\$shortName") !== false
+            ) {
+                $hasAttribute = true;
+                break;
+            }
+
+            if (
+                preg_match('/use\s+' . preg_quote(str_replace('\\', '\\\\', $fullNamespace), '/') . '\s*;/', $contents) &&
+                (strpos($contents, "#[$shortName") !== false || strpos($contents, "#[\\$shortName") !== false)
+            ) {
+                $hasAttribute = true;
+                break;
+            }
+        }
+
+        if (!$hasAttribute) {
+            return [];
+        }
+
+        $className = $this->fileToClass($filepath);
+
+        if (!class_exists($className, false)) {
+            try {
+                @include_once $filepath;
+            } catch (\Throwable $e) {
+                return [];
+            }
+        }
+
+        if (!class_exists($className)) {
+            return [];
+        }
+
+        try {
+            $reflectionClass = new ReflectionClass($className);
+            if ($reflectionClass->isAbstract() || $reflectionClass->isInterface()) {
+                return [];
+            }
+
+            $found = [];
+            foreach ($attributeClasses as $attributeClass) {
+                if (!empty($reflectionClass->getAttributes($attributeClass))) {
+                    $found[] = $attributeClass;
+                }
+            }
+            return $found;
+        } catch (\Throwable $e) {
+            return [];
+        }
     }
 
     /**
@@ -127,16 +288,34 @@ final class AttributeDiscoveryService
     }
 
     /**
-     * Check if the cache is valid by comparing stored directory mtimes and
-     * ensuring every requested attribute has already been scanned for every
-     * requested base path.
+     * Check if the cache is fully valid — all requested paths and attributes
+     * are covered and directory mtimes are unchanged.
      */
-    private function isCacheValid(array $cache, array $basePaths, array $attributeClasses): bool
+    private function isCacheFullyValid(array $cache, array $basePaths, array $attributeClasses): bool
     {
-        $scannedDirs = $cache['scanned_dirs'] ?? [];
+        if (!$this->areDirsValid($cache, $basePaths)) {
+            return false;
+        }
+
         $scannedPathAttributes = $cache['metadata']['scanned_attributes'] ?? [];
 
-        if (empty($scannedDirs) || empty($cache['class_map'] ?? [])) {
+        foreach ($basePaths as $basePath) {
+            if (!isset($scannedPathAttributes[$basePath]) || !empty(array_diff($attributeClasses, $scannedPathAttributes[$basePath]))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if stored directory mtimes are still current.
+     */
+    private function areDirsValid(array $cache, array $basePaths): bool
+    {
+        $scannedDirs = $cache['scanned_dirs'] ?? [];
+
+        if (empty($scannedDirs)) {
             return false;
         }
 
@@ -146,9 +325,6 @@ final class AttributeDiscoveryService
                 return false;
             }
             if (!isset($scannedDirs[$fullPath])) {
-                return false;
-            }
-            if (!isset($scannedPathAttributes[$basePath]) || !empty(array_diff($attributeClasses, $scannedPathAttributes[$basePath]))) {
                 return false;
             }
         }
@@ -457,6 +633,7 @@ final class AttributeDiscoveryService
             return self::$cacheData = [
                 'class_map' => [],
                 'scanned_dirs' => [],
+                'scanned_files' => [],
                 'metadata' => [
                     'last_scan' => 0,
                     'version' => 1,
@@ -479,6 +656,7 @@ final class AttributeDiscoveryService
         return self::$cacheData = [
             'class_map' => [],
             'scanned_dirs' => [],
+            'scanned_files' => [],
             'metadata' => [
                 'last_scan' => 0,
                 'version' => 1,
