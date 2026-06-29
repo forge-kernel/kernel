@@ -12,25 +12,21 @@ final class RegisterModuleRequires
 {
     use NamespaceHelper;
 
-    public function __construct(private readonly ReflectionClass $reflectionClass, private array $moduleRequirements)
-    {
+    public function __construct(
+        private readonly ReflectionClass $reflectionClass,
+        private readonly string $moduleName,
+    ) {
     }
 
-    public function init(): void
+    public function init(array &$moduleRequirements): void
     {
-        $this->initModuleRequires();
-    }
-
-    private function initModuleRequires(): void
-    {
-        $moduleName = $this->reflectionClass->getShortName();
         foreach ($this->reflectionClass->getAttributes(Requires::class) as $attribute) {
             $instance = $attribute->newInstance();
             if ($instance->interface !== null) {
-                $this->moduleRequirements[$moduleName]['interfaces'][$instance->interface] = $instance->version;
+                $moduleRequirements[$this->moduleName]['interfaces'][$instance->interface] = $instance->version;
             }
             if ($instance->module !== null) {
-                $this->moduleRequirements[$moduleName]['modules'][$instance->module] = $instance->version;
+                $moduleRequirements[$this->moduleName]['modules'][$instance->module] = $instance->version;
             }
         }
     }

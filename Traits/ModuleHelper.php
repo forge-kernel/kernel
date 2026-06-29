@@ -25,7 +25,7 @@ trait ModuleHelper
         }
 
         foreach ($requirements['modules'] ?? [] as $requiredModule => $versionConstraint) {
-            $moduleDirName = StringHelper::toPascalCase($requiredModule);
+            $moduleDirName = $this->nameToPascalCase($requiredModule);
             $modulePath = BASE_PATH . '/modules/' . $moduleDirName;
             if (!is_dir($modulePath)) {
                 throw new RuntimeException(
@@ -35,6 +35,11 @@ trait ModuleHelper
         }
 
         unset($this->moduleRequirements[$moduleName]);
+    }
+
+    private function nameToPascalCase(string $name): string
+    {
+        return str_replace(' ', '', ucwords(str_replace(['-', '_'], ' ', $name)));
     }
 
     private function normalizeViewPath(string $name): string

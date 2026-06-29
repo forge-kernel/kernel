@@ -521,10 +521,9 @@ final class Loader
         new RegisterModuleProvides($this->container, $reflectionClass)->init();
         $requiresRegistrar = new RegisterModuleRequires(
             $reflectionClass,
-            $this->moduleRequirements,
+            $moduleName,
         );
-        $requiresRegistrar->init();
-        $this->checkModuleRequirements($moduleName);
+        $requiresRegistrar->init($this->moduleRequirements);
         new RegisterModuleCompatibility(
             $reflectionClass,
             $moduleInstance,
