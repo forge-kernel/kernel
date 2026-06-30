@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Services;
 
 use Forge\Core\DI\Attributes\Injectable;
+use Forge\Core\Helpers\Logger;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -232,6 +233,7 @@ final class AttributeDiscoveryService
             try {
                 @include_once $filepath;
             } catch (\Throwable $e) {
+                Logger::log("AttributeDiscovery: failed to include file '{$filepath}'", $e->getMessage());
                 return [];
             }
         }
@@ -254,6 +256,7 @@ final class AttributeDiscoveryService
             }
             return $found;
         } catch (\Throwable $e) {
+            Logger::log("AttributeDiscovery: failed to reflect class '{$className}' from '{$filepath}'", $e->getMessage());
             return [];
         }
     }
@@ -438,6 +441,7 @@ final class AttributeDiscoveryService
                 }
             }
         } catch (\Exception $e) {
+            Logger::log("AttributeDiscovery: scanDirectory cache load failed", $e->getMessage());
         }
     }
 
@@ -507,6 +511,7 @@ final class AttributeDiscoveryService
                     @include_once $filepath;
                 }
             } catch (\Throwable $e) {
+                Logger::log("AttributeDiscovery: scanFile failed to include '{$filepath}'", $e->getMessage());
                 restore_error_handler();
                 if ($previousExceptionHandler) {
                     set_exception_handler($previousExceptionHandler);
@@ -547,8 +552,11 @@ final class AttributeDiscoveryService
                 ];
             }
         } catch (ReflectionException $e) {
+            Logger::log("AttributeDiscovery: scanFile reflection failed for '{$className}'", $e->getMessage());
         } catch (\Error $e) {
+            Logger::log("AttributeDiscovery: scanFile error for '{$className}'", $e->getMessage());
         } catch (\Throwable $e) {
+            Logger::log("AttributeDiscovery: scanFile failed for '{$className}'", $e->getMessage());
         }
     }
 

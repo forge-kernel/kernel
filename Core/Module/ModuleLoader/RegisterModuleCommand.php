@@ -11,6 +11,7 @@ use Forge\CLI\Attributes\CoreCommand;
 use Forge\CLI\Command;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Helpers\ModuleHelper;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
 use Forge\Core\Module\ModuleLoader\Loader;
@@ -102,7 +103,7 @@ final class RegisterModuleCommand
                     $registeredCount++;
                 }
             } else {
-                error_log("Class " . $className . " is not a valid CLI Command.");
+                Logger::log("Class " . $className . " is not a valid CLI Command.");
             }
         }
 
@@ -126,7 +127,7 @@ final class RegisterModuleCommand
                     return $commandsPath;
                 }
             } catch (\InvalidArgumentException $e) {
-                // Use default modulePath
+                Logger::log("RegisterModuleCommand: failed to resolve commands path for module '{$moduleName}'", $e->getMessage());
             }
         }
 

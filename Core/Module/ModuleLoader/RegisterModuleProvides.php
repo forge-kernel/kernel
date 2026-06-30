@@ -9,6 +9,7 @@ use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Module\Attributes\Provides;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
 use Forge\Traits\NamespaceHelper;
 use ReflectionClass;
@@ -58,6 +59,7 @@ final class RegisterModuleProvides
                     try {
                         require_once $file['path'];
                     } catch (\Throwable $e) {
+                        Logger::log("RegisterModuleProvides: failed to include '{$file['path']}' for class '{$className}'", $e->getMessage());
                         continue;
                     }
                 }
@@ -76,6 +78,7 @@ final class RegisterModuleProvides
                     }
                 }
             } catch (\ReflectionException $e) {
+                Logger::log("RegisterModuleProvides: reflection failed for class '{$className}'", $e->getMessage());
                 continue;
             }
         }

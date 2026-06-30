@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Bootstrap;
 
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -160,7 +161,7 @@ final class ReflectionCacheService
                 self::$propertyCache = $data['propertyCache'] ?? [];
             }
         } catch (\Throwable $e) {
-            // Cache corrupted, start fresh
+            Logger::log("ReflectionCacheService: cache corrupted, starting fresh", $e->getMessage());
             self::clearCache();
         }
 
@@ -228,7 +229,7 @@ final class ReflectionCacheService
                 try {
                     self::getClassReflection($className);
                 } catch (ReflectionException $e) {
-                    // Class doesn't exist or can't be reflected, skip
+                    Logger::log("ReflectionCacheService: failed to preload reflection for class '{$className}'", $e->getMessage());
                     continue;
                 }
             }

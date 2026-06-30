@@ -5,6 +5,7 @@ namespace Forge\Core\Bootstrap;
 
 use Forge\Core\DI\Container;
 use Forge\Core\Config\Environment;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Session\Drivers\FileSessionDriver;
 use Forge\Core\Session\Drivers\MemorySessionDriver;
 use Forge\Core\Session\Drivers\SqliteSessionDriver;
@@ -35,7 +36,7 @@ final class SessionSetup
                 };
                 return new Session($driver);
             } catch (\Throwable $e) {
-                error_log('Failed to initialize session driver "' . $driverName . '": ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+                Logger::log('Failed to initialize session driver "' . $driverName . '"', $e->getMessage());
                 $fileDriver = new FileSessionDriver();
                 return new Session($fileDriver);
             }

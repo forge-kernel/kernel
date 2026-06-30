@@ -10,6 +10,7 @@ use Forge\Core\Cache\Attributes\Cache;
 use Forge\Core\Cache\Traits\CacheTrait;
 use Forge\Core\Contracts\EventDispatcherInterface;
 use Forge\Core\DI\Container;
+use Forge\Core\Helpers\Logger;
 use Forge\Exceptions\MissingServiceException;
 use ReflectionException;
 use ReflectionMethod;
@@ -233,7 +234,8 @@ final class CacheInterceptor
     {
         try {
             $dispatcher = Container::getInstance()->get(EventDispatcherInterface::class);
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Logger::log("CacheInterceptor: EventDispatcherInterface not available, skipping cache refresh", $e->getMessage());
             return;
         }
 

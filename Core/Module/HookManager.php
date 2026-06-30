@@ -6,6 +6,7 @@ namespace Forge\Core\Module;
 
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 
 final class HookManager
 {
@@ -48,12 +49,23 @@ final class HookManager
 
         if (isset(self::$hooks[$name])) {
             foreach (self::$hooks[$name] as $callback) {
-                if (is_callable($callback)) {
-                    call_user_func_array($callback, $args);
-                } elseif (is_array($callback) && count($callback) === 2 && method_exists($callback[0], $callback[1])) {
-                    call_user_func_array($callback, $args);
-                } else {
-                    self::invalidateCompiledHooks();
+                try {
+                    if (is_callable($callback)) {
+                        call_user_func_array($callback, $args);
+                    } elseif (is_array($callback) && count($callback) === 2 && method_exists($callback[0], $callback[1])) {
+                        call_user_func_array($callback, $args);
+                    } else {
+                        self::invalidateCompiledHooks();
+                    }
+                } catch (\Throwable $e) {
+                    $context = is_array($callback)
+                        ? (is_object($callback[0]) ? get_class($callback[0]) : $callback[0]) . '::' . $callback[1]
+                        : 'Closure';
+                    throw new \RuntimeException(
+                        "Error in lifecycle hook '{$hookName->value}' for callback [{$context}]: " . $e->getMessage(),
+                        0,
+                        $e
+                    );
                 }
             }
         }
@@ -100,7 +112,7 @@ final class HookManager
                 $name = LifecycleHookName::from($hookName);
                 self::addHook($name, $callback);
             } catch (\Throwable $e) {
-                error_log("Failed to load compiled hook {$hook['class']}::{$hook['method']}: " . $e->getMessage());
+                Logger::log("Failed to load compiled hook {$hook['class']}::{$hook['method']}", $e->getMessage());
             }
         }
 

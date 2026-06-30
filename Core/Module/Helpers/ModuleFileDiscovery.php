@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Module\Helpers;
 
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Traits\NamespaceHelper;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -123,6 +124,7 @@ final class ModuleFileDiscovery
                         }
                     }
                 } catch (\Throwable $e) {
+                    Logger::log("ModuleFileDiscovery: failed to discover module in '{$filePath}'", $e->getMessage());
                 }
             }
         }

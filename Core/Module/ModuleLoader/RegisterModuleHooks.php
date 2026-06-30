@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Module\ModuleLoader;
 
 use Forge\Core\DI\Container;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\Attributes\Module;
 use Forge\Core\Module\HookManager;
@@ -49,7 +50,7 @@ final class RegisterModuleHooks
           $loader = $this->container->get(Loader::class);
         }
       } catch (\Throwable $e) {
-
+        Logger::log("RegisterModuleHooks: failed to get Loader from container", $e->getMessage());
       }
 
       foreach ($this->reflectionClass->getMethods() as $method) {

@@ -10,6 +10,7 @@ use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Helpers\ModuleHelper;
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\HookManager;
@@ -80,6 +81,7 @@ final class ServiceDiscoverSetup
                     try {
                         require_once $filepath;
                     } catch (\Exception $e) {
+                        Logger::log("ServiceDiscoverSetup: failed to require file '{$filepath}'", $e->getMessage());
                         continue;
                     }
                 }
@@ -114,7 +116,7 @@ final class ServiceDiscoverSetup
 
                 self::registerServiceLifecycleHooks($reflectionClass, $container, $cacheLifecycleHooks);
             } catch (ReflectionException $e) {
-
+                Logger::log("ServiceDiscoverSetup: reflection failed for class '{$className}'", $e->getMessage());
             }
         }
         self::generateLegacyClassMapCache($classMap);
@@ -140,6 +142,7 @@ final class ServiceDiscoverSetup
                 $config = $container->get(Config::class);
             }
         } catch (\Throwable $e) {
+            Logger::log("ServiceDiscoverSetup: failed to get Config from container", $e->getMessage());
         }
 
         return OptimizedDirectoryScanner::getServiceDiscoveryPaths($config);

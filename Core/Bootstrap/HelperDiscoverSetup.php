@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Bootstrap;
 
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -92,6 +93,7 @@ final class HelperDiscoverSetup
 
             return $files;
         } catch (\Exception $e) {
+            Logger::log("HelperDiscoverSetup: failed to load helper map cache", $e->getMessage());
             return null;
         }
     }

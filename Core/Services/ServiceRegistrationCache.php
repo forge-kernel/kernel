@@ -7,6 +7,7 @@ namespace Forge\Core\Services;
 use Forge\Core\Contracts\EventDispatcherInterface;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\Core\DI\Attributes\Injectable;
@@ -27,7 +28,8 @@ final class ServiceRegistrationCache
                 return null;
             }
             return $data;
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Logger::log("ServiceRegistrationCache: failed to load cache file", $e->getMessage());
             return null;
         }
     }
@@ -98,7 +100,8 @@ final class ServiceRegistrationCache
         if (!empty($cache['event_listeners'])) {
             try {
                 $eventDispatcher = $container->get(EventDispatcherInterface::class);
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                Logger::log("ServiceRegistrationCache: failed to restore event listener", $e->getMessage());
                 return;
             }
             foreach ($cache['event_listeners'] as $eventClass => $listeners) {
@@ -120,7 +123,8 @@ final class ServiceRegistrationCache
         foreach ($cache['lifecycle_hooks'] ?? [] as $hookName => $callbacks) {
             try {
                 $lifecycleHook = LifecycleHookName::from($hookName);
-            } catch (\Throwable) {
+            } catch (\Throwable $e) {
+                Logger::log("ServiceRegistrationCache: invalid lifecycle hook name '{$hookName}'", $e->getMessage());
                 continue;
             }
             foreach ($callbacks as $callback) {
@@ -129,7 +133,8 @@ final class ServiceRegistrationCache
                         ? $container->get($callback['class'])
                         : $container->make($callback['class']);
                     HookManager::addHook($lifecycleHook, [$instance, $callback['method']]);
-                } catch (\Throwable) {
+                } catch (\Throwable $e) {
+                    Logger::log("ServiceRegistrationCache: failed to restore lifecycle hook {$callback['class']}::{$callback['method']}", $e->getMessage());
                 }
             }
         }

@@ -6,6 +6,7 @@ namespace Forge\Core\Bootstrap;
 
 use Forge\Core\Config\Config;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Helpers\ModuleHelper;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -283,7 +284,7 @@ final class OptimizedDirectoryScanner
                 self::$cachedMtimes = $data['mtimes'] ?? null;
             }
         } catch (\Throwable $e) {
-            // Cache corrupted, ignore
+            Logger::log("OptimizedDirectoryScanner: cache corrupted", $e->getMessage());
         }
 
         self::$loaded = true;

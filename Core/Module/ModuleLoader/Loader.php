@@ -10,6 +10,7 @@ use Forge\Core\Config\Config;
 use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\Attributes\Module;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
@@ -254,10 +255,7 @@ final class Loader
                                     );
                                 }
                             } catch (\Throwable $e) {
-                                error_log(
-                                    "Error calling early hook {$hookName->value} on {$className}::{$methodName}: " .
-                                    $e->getMessage(),
-                                );
+                                Logger::log("Error calling early hook {$hookName->value} on {$className}::{$methodName}", $e->getMessage());
                                 return null;
                             }
                         };
@@ -270,15 +268,9 @@ final class Loader
                 }
             }
         } catch (\ReflectionException $e) {
-            error_log(
-                "Error discovering early hooks for {$className}: " .
-                $e->getMessage(),
-            );
+            Logger::log("Error discovering early hooks for {$className}", $e->getMessage());
         } catch (\Throwable $e) {
-            error_log(
-                "Error discovering early hooks for {$className}: " .
-                $e->getMessage(),
-            );
+            Logger::log("Error discovering early hooks for {$className}", $e->getMessage());
         }
     }
 

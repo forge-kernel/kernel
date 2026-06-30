@@ -9,6 +9,7 @@ use Forge\Core\Config\Config;
 use Forge\Core\Debug\Metrics;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Module\Attributes\Module;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
@@ -192,7 +193,7 @@ final class ModuleSetup
                             "method" => $methodName,
                         ];
                     } else {
-                        error_log(
+                        Logger::log(
                             "✗ Invalid class/method names: class=" .
                             gettype($className) .
                             ", method=" .
@@ -200,7 +201,7 @@ final class ModuleSetup
                         );
                     }
                 } else {
-                    error_log(
+                    Logger::log(
                         "✗ Unsupported callback type: " . gettype($callback),
                     );
                 }

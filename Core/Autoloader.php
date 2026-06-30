@@ -5,6 +5,7 @@ namespace Forge\Core;
 
 use Forge\Exceptions\ClassNotFoundException;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 use SplFileInfo;
 use const PHP_SAPI;
 
@@ -326,7 +327,7 @@ final class Autoloader
                     self::$lowerClassMap = $data['lowerClassMap'] ?? [];
                 }
             } catch (\Throwable $e) {
-                // Cache corrupted, ignore
+                Logger::log("Autoloader: class file map cache corrupted", $e->getMessage());
             }
         }
     }

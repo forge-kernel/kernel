@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Module;
 
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Helpers\Logger;
 
 final class ModuleCommandCache
 {
@@ -28,6 +29,7 @@ final class ModuleCommandCache
             }
             return $data;
         } catch (\Throwable $e) {
+            Logger::log("ModuleCommandCache: failed to load cache", $e->getMessage());
             return null;
         }
     }

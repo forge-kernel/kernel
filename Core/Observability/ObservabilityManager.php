@@ -6,6 +6,7 @@ namespace Forge\Core\Observability;
 
 use Forge\Core\Contracts\Database\DatabaseConnectionInterface;
 use Forge\Core\DI\Container;
+use Forge\Core\Helpers\Logger;
 use Forge\Core\Observability\Instrumentation\MetricsBridge;
 use Forge\Core\Observability\Processor\SamplingProcessor;
 use Forge\Core\Observability\Storage\DatabaseStorage;
@@ -64,8 +65,8 @@ final class ObservabilityManager
             if ($storage !== null) {
                 $storage->saveTrace($this->currentTrace);
             }
-        } catch (\Throwable) {
-            // Observability must never break the application.
+        } catch (\Throwable $e) {
+            Logger::log("ObservabilityManager: failed to save trace to storage", $e->getMessage());
         }
 
         $this->currentTrace = null;
@@ -117,7 +118,8 @@ final class ObservabilityManager
                 $this->storage = new DatabaseStorage($container->get(DatabaseConnectionInterface::class));
                 return $this->storage;
             }
-        } catch (\Throwable) {
+        } catch (\Throwable $e) {
+            Logger::log("ObservabilityManager: failed to resolve database storage", $e->getMessage());
         }
 
         return null;
