@@ -154,7 +154,7 @@ final class GenerateModuleCommand extends Command
             '{{ moduleVersion }}' => $this->version,
             '{{ moduleConfig }}' => $this->toSnakeCase($this->name),
             '{{ structureAttribute }}' => $structureAttribute,
-            '{{ frameworkVersion }}' => FRAMEWORK_VERSION,
+            '{{ frameworkVersion }}' => KERNEL_VERSION,
         ];
 
         $commandsPath = $moduleStructure['commands'] ?? 'src/Commands';

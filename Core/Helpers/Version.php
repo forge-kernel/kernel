@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Forge\Core\Helpers;
 
-final class Framework
+final class Version
 {
     public static function version(): string
     {
-        return FRAMEWORK_VERSION;
+        return KERNEL_VERSION;
     }
 
     public static function isVersionCompatible(string $currentVersion, string $requiredVersion): bool

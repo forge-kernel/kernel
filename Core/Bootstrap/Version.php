@@ -4,4 +4,4 @@ declare(strict_types=1);
 
 namespace Forge\Core\Bootstrap;
 
-define("FRAMEWORK_VERSION", "6.0.21");
+define("KERNEL_VERSION", "6.0.22");

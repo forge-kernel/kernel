@@ -13,7 +13,7 @@ if ($requestUri !== '' && preg_match('/\.env$/i', $requestUri)) {
 use Forge\Core\Bootstrap\Bootstrap;
 use Forge\Core\Debug\Metrics;
 
-final class Engine
+final class Kernel
 {
     public static function init(): void
     {

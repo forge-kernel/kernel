@@ -162,7 +162,7 @@ if (file_exists($maintenanceFile)) {
     exit;
 }
 
-\Forge\Core\Engine::init();
+\Forge\Core\Kernel::init();
 PHP
         );
 

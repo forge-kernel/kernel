@@ -39,6 +39,8 @@ final class Container
   private array $parameters = [];
   private array $tags = [];
   private bool $isBootstrapping = true;
+  private bool $recording = false;
+  private array $recordedBindings = [];
   private ?CacheManager $cacheManager = null;
   private static array $reflectionCache = [];
   private static array $cacheAnalysisCache = [];
@@ -82,6 +84,14 @@ final class Container
       $singleton = true;
     }
 
+    if ($this->recording) {
+      $this->recordedBindings[] = [
+        'id' => $id,
+        'concrete' => $class,
+        'singleton' => $singleton,
+      ];
+    }
+
     $this->services[$id] = [
       "class" => $class,
       "singleton" => $singleton,
@@ -95,11 +105,34 @@ final class Container
     return array_keys($this->services);
   }
 
+  public function startRecording(): void
+  {
+    $this->recording = true;
+    $this->recordedBindings = [];
+  }
+
+  public function stopRecording(): void
+  {
+    $this->recording = false;
+  }
+
+  public function getRecordedBindings(): array
+  {
+    return $this->recordedBindings;
+  }
+
   public function bind(
     string $id,
     Closure|string $concrete,
     bool $singleton = false,
   ): void {
+    if ($this->recording && is_string($concrete)) {
+      $this->recordedBindings[] = [
+        'id' => $id,
+        'concrete' => $concrete,
+        'singleton' => $singleton,
+      ];
+    }
     $this->services[$id] = [
       "class" => $concrete,
       "singleton" => $singleton,
@@ -110,6 +143,13 @@ final class Container
 
   public function singleton(string $abstract, Closure|string $concrete): void
   {
+    if ($this->recording && is_string($concrete)) {
+      $this->recordedBindings[] = [
+        'id' => $abstract,
+        'concrete' => $concrete,
+        'singleton' => true,
+      ];
+    }
     $this->services[$abstract] = [
       "class" => $concrete,
       "singleton" => true,

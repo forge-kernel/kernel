@@ -120,7 +120,7 @@ final class ServiceDiscoverSetup
         self::generateLegacyClassMapCache($classMap);
 
         $fullPaths = array_map(fn(string $p): string => BASE_PATH . '/' . ltrim($p, '/'), $basePaths);
-        ServiceRegistrationCache::buildAndSave($cacheServices, [], [], $cacheLifecycleHooks, $fullPaths);
+        ServiceRegistrationCache::buildAndSave($cacheServices, [], [], $cacheLifecycleHooks, $fullPaths, $container->getRecordedBindings());
 
         // Save reflection cache for next request
         ReflectionCacheService::saveCache();

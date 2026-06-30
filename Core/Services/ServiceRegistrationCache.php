@@ -56,7 +56,7 @@ final class ServiceRegistrationCache
         return true;
     }
 
-    public static function buildAndSave(array $services, array $tags, array $eventListeners, array $lifecycleHooks, array $scannedDirs): void
+    public static function buildAndSave(array $services, array $tags, array $eventListeners, array $lifecycleHooks, array $scannedDirs, array $registerBindings = []): void
     {
         $cacheDir = dirname(self::CACHE_FILE);
         if (!is_dir($cacheDir)) {
@@ -75,6 +75,7 @@ final class ServiceRegistrationCache
             'tags' => $tags,
             'event_listeners' => $eventListeners,
             'lifecycle_hooks' => $lifecycleHooks,
+            'register_bindings' => $registerBindings,
             'dir_mtimes' => $dirMtimes,
         ];
 
@@ -107,6 +108,12 @@ final class ServiceRegistrationCache
                         : $container->make($listener['class']);
                     $eventDispatcher->addListener($eventClass, [$instance, $listener['method']]);
                 }
+            }
+        }
+
+        foreach ($cache['register_bindings'] ?? [] as $binding) {
+            if (!$container->has($binding['id'])) {
+                $container->bind($binding['id'], $binding['concrete'], $binding['singleton']);
             }
         }
 

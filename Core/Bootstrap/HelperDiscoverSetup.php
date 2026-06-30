@@ -13,6 +13,7 @@ final class HelperDiscoverSetup
     private const string HELPER_MAP_CACHE_FILE =
         BASE_PATH . "/storage/framework/cache/helper-map.php";
     private static array $helperSearchPaths = [];
+    private static array $includedFiles = [];
 
     private static function getHelperSearchPaths(): array
     {
@@ -109,7 +110,8 @@ final class HelperDiscoverSetup
         FileExistenceCache::preload($absolutePaths);
 
         foreach ($absolutePaths as $absolutePath) {
-            if (FileExistenceCache::exists($absolutePath)) {
+            if (FileExistenceCache::exists($absolutePath) && !in_array($absolutePath, self::$includedFiles, true)) {
+                self::$includedFiles[] = $absolutePath;
                 require $absolutePath;
             }
         }
@@ -215,7 +217,10 @@ final class HelperDiscoverSetup
     private static function includeHelpers(array $helperFiles): void
     {
         foreach ($helperFiles as $filepath) {
-            require $filepath;
+            if (!in_array($filepath, self::$includedFiles, true)) {
+                self::$includedFiles[] = $filepath;
+                require $filepath;
+            }
         }
     }
 }

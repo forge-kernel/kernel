@@ -16,6 +16,7 @@ use Forge\Core\Module\Helpers\ModuleFileDiscovery;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\Core\Module\ModuleCommandCache;
+use Forge\Core\Services\ServiceRegistrationCache;
 use Forge\Traits\ModuleHelper;
 use Forge\Traits\NamespaceHelper;
 use ReflectionClass;
@@ -298,16 +299,38 @@ final class Loader
     {
         $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
 
-        if (!$this->isRegistryStale()) {
+        if ($this->isRegistryStale()) {
+            $this->discoverAndBuildRegistry($moduleDirectory);
+        } else {
             $this->registerAutoloadPathsFromRegistry();
+        }
+
+        $cache = ServiceRegistrationCache::load();
+        if ($cache !== null && ServiceRegistrationCache::isValid($cache)) {
             return;
         }
 
+        $this->container->startRecording();
+        $this->registerAllModules();
+        $this->container->stopRecording();
+    }
+
+    private function registerAllModules(): void
+    {
+        foreach ($this->getSortedModuleRegistry() as $moduleInfo) {
+            $moduleName = basename($moduleInfo["path"]);
+            if (!$this->isModuleDisabled($moduleName) && !isset($this->modules[$moduleName])) {
+                $this->loadModuleByName($moduleInfo["name"]);
+            }
+        }
+    }
+
+    private function discoverAndBuildRegistry(string $moduleDirectory): void
+    {
         $modules = ModuleFileDiscovery::discoverModulesInDirectory(
             $moduleDirectory,
         );
 
-        // Preload all module files for optimal performance
         ModuleFileDiscovery::preloadAllModuleFiles($modules);
 
         foreach ($modules as $module) {

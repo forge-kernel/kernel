@@ -68,7 +68,7 @@ final class VersionService
         }
 
         $content = file_get_contents($versionFile);
-        if (preg_match('/define\s*\(\s*["\']FRAMEWORK_VERSION["\']\s*,\s*["\']([^"\']+)["\']/', $content, $matches)) {
+        if (preg_match('/define\s*\(\s*["\']KERNEL_VERSION["\']\s*,\s*["\']([^"\']+)["\']/', $content, $matches)) {
             return $matches[1];
         }
 
@@ -107,8 +107,8 @@ final class VersionService
 
         $content = file_get_contents($versionFile);
         $content = preg_replace(
-            '/define\s*\(\s*["\']FRAMEWORK_VERSION["\']\s*,\s*["\'][^"\']+["\']\s*\)\s*;/',
-            "define(\"FRAMEWORK_VERSION\", \"{$version}\");",
+            '/define\s*\(\s*["\']KERNEL_VERSION["\']\s*,\s*["\'][^"\']+["\']\s*\)\s*;/',
+            "define(\"KERNEL_VERSION\", \"{$version}\");",
             $content
         );
 
