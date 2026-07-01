@@ -34,7 +34,8 @@ final class Logger
         }
 
         if (self::isDev()) {
-            fwrite(STDERR, $line . PHP_EOL);
+            $stderr = defined('STDERR') ? STDERR : fopen('php://stderr', 'wb');
+            fwrite($stderr, $line . PHP_EOL);
         }
     }
 
