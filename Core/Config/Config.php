@@ -195,6 +195,10 @@ final class Config
 
   private function arrayMergeAddMissing(array $existing, array $defaults): array
   {
+    if (empty($existing)) {
+      return $existing;
+    }
+
     foreach ($defaults as $key => $value) {
       if (!array_key_exists($key, $existing)) {
         $existing[$key] = $value;

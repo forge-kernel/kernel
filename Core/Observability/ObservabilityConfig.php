@@ -8,7 +8,7 @@ final class ObservabilityConfig
 {
     public static function enabled(): bool
     {
-        return (bool) config('forge_observability.enabled', true);
+        return (bool) config('forge_observability.enabled', false);
     }
 
     public static function strategy(): string
