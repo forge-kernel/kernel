@@ -19,12 +19,7 @@ final class SessionSetup
         $env = Environment::getInstance();
 
         $container->singleton(SessionInterface::class, function () use ($env) {
-            $driverName = strtolower(trim($env->get('SESSION_DRIVER', 'memory')));
-            $rawValue = $env->get('SESSION_DRIVER');
-
-            if ($rawValue === null || $rawValue === '') {
-                $driverName = 'file';
-            }
+            $driverName = strtolower(trim($env->get('SESSION_DRIVER', 'file')));
 
             try {
                 $driver = match ($driverName) {

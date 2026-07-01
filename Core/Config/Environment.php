@@ -14,7 +14,10 @@ final class Environment
 
     private function __construct()
     {
-        $this->config = $_ENV;
+        $this->config = array_merge([
+            'APP_ENV' => 'development',
+            'APP_DEBUG' => 'true',
+        ], $_ENV);
     }
 
     public static function getInstance(): self
@@ -41,6 +44,6 @@ final class Environment
     }
     public function isDebugEnabled(): bool
     {
-        return $this->get('APP_DEBUG') === true;
+        return filter_var($this->get('APP_DEBUG', 'true'), FILTER_VALIDATE_BOOLEAN);
     }
 }

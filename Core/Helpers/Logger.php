@@ -74,6 +74,6 @@ final class Logger
             return self::$isDev;
         }
 
-        return self::$isDev = ($_ENV['APP_ENV'] ?? 'production') === 'development';
+        return self::$isDev = ($_ENV['APP_ENV'] ?? 'development') === 'development';
     }
 }

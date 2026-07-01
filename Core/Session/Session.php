@@ -18,13 +18,13 @@ final class Session implements SessionInterface
     public function __construct(private SessionDriverInterface $driver)
     {
         $this->config = [
-            "name" => $this->getEnvVar("SESSION_NAME", "FORGE_SESSID", true),
+            "name" => $this->getEnvVar("SESSION_NAME", "FORGE_SESSID"),
             "lifetime" => (int) ($_ENV["SESSION_LIFETIME"] ?? 1440),
-            "path" => $this->getEnvVar("SESSION_PATH", "/", true),
-            "domain" => $this->getEnvVar("SESSION_DOMAIN", "", true),
+            "path" => $this->getEnvVar("SESSION_PATH", "/"),
+            "domain" => $this->getEnvVar("SESSION_DOMAIN", ""),
             "secure" => (bool) ($_ENV["SESSION_SECURE"] ?? false),
             "httponly" => (bool) ($_ENV["SESSION_HTTPONLY"] ?? true),
-            "samesite" => $this->getEnvVar("SESSION_SAMESITE", "Lax", true),
+            "samesite" => $this->getEnvVar("SESSION_SAMESITE", "Lax"),
         ];
     }
 
