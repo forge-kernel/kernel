@@ -39,6 +39,11 @@ final class RegisterModuleService
 
     foreach ($files as $file) {
       $className = $file['className'];
+
+      if (str_starts_with($file['namespace'], $moduleNamespace . '\\Tests')) {
+        continue;
+      }
+
       if (class_exists($className, false)) {
         $classReflection = ModuleFileDiscovery::getReflectionClass($className);
         if ($classReflection->getAttributes(Injectable::class) || $classReflection->getAttributes(Service::class)) {

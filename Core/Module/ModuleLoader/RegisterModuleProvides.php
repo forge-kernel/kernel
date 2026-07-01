@@ -52,6 +52,10 @@ final class RegisterModuleProvides
         $files = ModuleFileDiscovery::discoverPhpFilesInModule($modulePath, $moduleNamespace);
 
         foreach ($files as $file) {
+            if (str_starts_with($file['namespace'], $moduleNamespace . '\\Tests')) {
+                continue;
+            }
+
             $className = $file['className'];
 
             if (!class_exists($className, false)) {
