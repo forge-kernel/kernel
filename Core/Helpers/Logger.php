@@ -8,7 +8,7 @@ use Stringable;
 
 final class Logger
 {
-    private const string LOG_FILE = BASE_PATH . '/storage/logs/kernel.log';
+    private const string LOG_FILE = '/storage/logs/kernel.log';
     private const int MAX_LOG_LENGTH = 10000;
 
     private static ?string $logPath = null;
