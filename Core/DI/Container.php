@@ -296,6 +296,10 @@ final class Container
             return $this;
         }
 
+        if ($class === \Closure::class) {
+            throw new ResolveParameterException("Cannot build Closure: closures must be provided explicitly");
+        }
+
         $reflector = new ReflectionClass($class);
 
         if (!($constructor = $reflector->getConstructor())) {
@@ -321,8 +325,24 @@ final class Container
             }
 
             if ($type instanceof \ReflectionNamedType) {
+                $dependencyClass = $type->getName();
+
+                if ($dependencyClass === \Closure::class) {
+                    if ($parameter->isDefaultValueAvailable()) {
+                        $dependencies[] = $parameter->getDefaultValue();
+                        continue;
+                    }
+                    if ($parameter->allowsNull()) {
+                        $dependencies[] = null;
+                        continue;
+                    }
+                    throw new ResolveParameterException(
+                        "Cannot resolve parameter \${$parameter->name} in {$class}: Closure dependencies must be provided explicitly",
+                    );
+                }
+
                 try {
-                    $dependencies[] = $this->make($type->getName());
+                    $dependencies[] = $this->make($dependencyClass);
                 } catch (MissingServiceException $e) {
                     if ($parameter->allowsNull()) {
                         Logger::log("build(): injected null for optional parameter '\${$parameter->name}' in {$class}", $e->getMessage());
@@ -349,6 +369,10 @@ final class Container
     {
         if ($class === self::class) {
             return $this;
+        }
+
+        if ($class === \Closure::class) {
+            throw new ResolveParameterException("Cannot resolve Closure: closures must be provided explicitly");
         }
 
         $reflector = new ReflectionClass($class);
@@ -384,6 +408,21 @@ final class Container
 
             if ($type instanceof \ReflectionNamedType) {
                 $dependencyClass = $type->getName();
+
+                if ($dependencyClass === \Closure::class) {
+                    if ($parameter->isDefaultValueAvailable()) {
+                        $dependencies[] = $parameter->getDefaultValue();
+                        continue;
+                    }
+                    if ($parameter->allowsNull()) {
+                        $dependencies[] = null;
+                        continue;
+                    }
+                    throw new ResolveParameterException(
+                        "Cannot resolve parameter \${$parameter->name} in {$class}: Closure dependencies must be provided explicitly",
+                    );
+                }
+
                 try {
                     $dependencies[] = $this->get($dependencyClass);
                 } catch (MissingServiceException $e) {
