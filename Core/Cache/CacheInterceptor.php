@@ -133,6 +133,7 @@ final class CacheInterceptor
                 }
 
                 if ($attr->stale > 0 && $expiresAt + $attr->stale > $now) {
+                    $ttl = $attr->ttl;
                     $stale = $cachedEntry["value"];
                     $this->refreshAsync(
                         $instance,
