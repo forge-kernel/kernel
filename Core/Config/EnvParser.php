@@ -30,9 +30,10 @@ final class EnvParser
 
             $value = self::stripInlineComment($value);
 
-            if (!array_key_exists($name, $_ENV)) {
-                $_ENV[$name] = self::parseValue($value);
+            if (getenv($name) !== false) {
+                continue;
             }
+            $_ENV[$name] = self::parseValue($value);
         }
     }
 

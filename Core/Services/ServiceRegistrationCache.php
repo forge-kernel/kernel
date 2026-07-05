@@ -72,12 +72,18 @@ final class ServiceRegistrationCache
             }
         }
 
+        // Deduplicate: keep only the last binding per ID (later bindings overwrite earlier ones)
+        $uniqueBindings = [];
+        foreach ($registerBindings as $binding) {
+            $uniqueBindings[$binding['id']] = $binding;
+        }
+
         $data = [
             'services' => $services,
             'tags' => $tags,
             'event_listeners' => $eventListeners,
             'lifecycle_hooks' => $lifecycleHooks,
-            'register_bindings' => $registerBindings,
+            'register_bindings' => array_values($uniqueBindings),
             'dir_mtimes' => $dirMtimes,
         ];
 
@@ -140,11 +146,13 @@ final class ServiceRegistrationCache
         }
     }
 
-    public static function clear(): void
+    public static function clear(): bool
     {
         if (FileExistenceCache::exists(self::CACHE_FILE)) {
             @unlink(self::CACHE_FILE);
+            return true;
         }
+        return false;
     }
 
     public static function getCacheFilePath(): string

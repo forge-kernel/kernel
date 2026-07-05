@@ -75,10 +75,8 @@ final class Bootstrap
 
   private static function initEnvironment(): void
   {
-    Metrics::start("environment_resolution");
     if(isset($_ENV['FORGE_MANAGED'])) {
       Environment::getInstance()->hidrate($_ENV);
-      Metrics::stop();
       return;
     }
 
@@ -87,6 +85,8 @@ final class Bootstrap
     if (FileExistenceCache::exists($envPath)) {
       EnvParser::load($envPath);
     }
+
+    Metrics::start("environment_resolution");
     Environment::getInstance();
     Metrics::stop("environment_resolution");
   }

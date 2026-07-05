@@ -28,7 +28,7 @@ final class ResetManager
                 $callback();
             } else {
                 [$class, $method] = $callback;
-                $class::$method();
+                self::invokeArrayCallback($class, $method);
             }
         }
     }
@@ -40,8 +40,19 @@ final class ResetManager
                 $callback();
             } else {
                 [$class, $method] = $callback;
-                $class::$method();
+                self::invokeArrayCallback($class, $method);
             }
+        }
+    }
+
+    private static function invokeArrayCallback(string $class, string $method): void
+    {
+        $refMethod = new \ReflectionMethod($class, $method);
+        if ($refMethod->isStatic()) {
+            $class::$method();
+        } else {
+            $instance = new $class();
+            $instance->$method();
         }
     }
 }

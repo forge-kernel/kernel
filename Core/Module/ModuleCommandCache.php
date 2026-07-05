@@ -100,10 +100,12 @@ final class ModuleCommandCache
         file_put_contents(self::CACHE_FILE, $content);
     }
 
-    public static function clear(): void
+    public static function clear(): bool
     {
         if (FileExistenceCache::exists(self::CACHE_FILE)) {
             @unlink(self::CACHE_FILE);
+            return true;
         }
+        return false;
     }
 }

@@ -10,14 +10,13 @@ use Forge\Core\Debug\Metrics;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
-use Forge\Core\Module\Attributes\Module;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
+use Forge\Core\Module\ModuleCache;
 use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Core\Session\SessionInterface;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
-use ReflectionClass;
 use ReflectionException;
 use ReflectionFunction;
 
@@ -78,7 +77,11 @@ final class ModuleSetup
 
         Metrics::start("module_loading");
         $moduleLoader->loadModules();
-        self::loadCoreModules($moduleLoader);
+        $moduleLoader->loadCoreModules();
+
+        if (!ModuleCache::isValid()) {
+            ModuleCache::buildAndSave($container, $moduleLoader->getModuleMetas(), $moduleLoader->getModuleDirectories());
+        }
         Metrics::stop("module_loading");
 
         if (
@@ -94,44 +97,6 @@ final class ModuleSetup
         self::$modulesLoaded = true;
 
         return $container;
-    }
-
-    private static function loadCoreModules(Loader $moduleLoader): void
-    {
-        $moduleRegistry = $moduleLoader->getSortedModuleRegistry();
-
-        $coreClassNames = [];
-        foreach ($moduleRegistry as $moduleInfo) {
-            $type = $moduleInfo["type"] ?? null;
-            if ($type === null) {
-                $reflectionClass = new \ReflectionClass($moduleInfo["name"]);
-                $attributes = $reflectionClass->getAttributes(Module::class);
-                $type = !empty($attributes) ? $attributes[0]->newInstance()->type : "module";
-            }
-            if ($type === "core") {
-                $coreClassNames[] = $moduleInfo["name"];
-            }
-        }
-
-        if (empty($coreClassNames)) {
-            return;
-        }
-
-        ReflectionCacheService::preloadClassReflections($coreClassNames);
-
-        foreach ($moduleRegistry as $moduleInfo) {
-            if (!in_array($moduleInfo["name"], $coreClassNames, true)) {
-                continue;
-            }
-
-            $moduleName = basename($moduleInfo["path"]);
-            if ($moduleLoader->isModuleDisabled($moduleName)) {
-                continue;
-            }
-            if (!$moduleLoader->isModuleLoaded($moduleInfo["name"])) {
-                $moduleLoader->loadModuleByName($moduleInfo["name"]);
-            }
-        }
     }
 
     /**

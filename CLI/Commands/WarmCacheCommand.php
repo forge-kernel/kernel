@@ -8,12 +8,13 @@ use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Command;
 use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Bootstrap\ModuleSetup;
+use Forge\Core\Bootstrap\OptimizedDirectoryScanner;
 use Forge\Core\Contracts\Cache\CacheWarmerInterface;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
-use Forge\Core\Module\ModuleLoader\Loader;
+use Forge\Core\Module\ModuleCache;
 use Forge\Core\Module\ModuleCommandCache;
-use Forge\Core\Bootstrap\OptimizedDirectoryScanner;
+use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ModuleAssetManager;
 use Forge\Core\Services\ServiceRegistrationCache;
@@ -46,6 +47,9 @@ final class WarmCacheCommand extends Command
     {
         $this->info("Warming application caches...");
 
+        ModuleCache::clear();
+        ServiceRegistrationCache::clear();
+
         $this->warmModuleRegistry();
         $this->warmCompiledHooks();
     $this->warmModuleAssets();
@@ -66,10 +70,18 @@ final class WarmCacheCommand extends Command
         try {
             /** @var Loader $moduleLoader */
             $moduleLoader = $this->container->get(Loader::class);
+            $moduleLoader->resetModules();
             $moduleLoader->loadModules();
+            $moduleLoader->loadCoreModules();
 
             $registry = $moduleLoader->getSortedModuleRegistry();
             $moduleCount = count($registry);
+
+            ModuleCache::buildAndSave(
+                $this->container,
+                $moduleLoader->getModuleMetas(),
+                $moduleLoader->getModuleDirectories()
+            );
 
             $this->success("Module registry rebuilt successfully ({$moduleCount} modules).");
         } catch (\Exception $e) {

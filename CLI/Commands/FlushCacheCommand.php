@@ -9,10 +9,11 @@ use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Command;
 use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\Module\ModuleCache;
+use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ServiceRegistrationCache;
 use Forge\Core\Autoloader;
-use Forge\Core\Module\ModuleCommandCache;
 
 #[Cli(
     command: 'cache:flush',
@@ -47,6 +48,7 @@ final class FlushCacheCommand extends Command
         $this->clearGeneralCache();
         $this->clearRolePermissionCache();
         $this->clearModuleCommandCache();
+        $this->clearModuleCache();
         $this->clearServiceRegistrationCache();
         $this->resetModuleRegistry();
 
@@ -181,6 +183,13 @@ final class FlushCacheCommand extends Command
         ModuleCommandCache::clear()
             ? $this->success("Module command cache cleared successfully.")
             : $this->warning("Module command cache file does not exist.");
+    }
+
+    private function clearModuleCache(): void
+    {
+        ModuleCache::clear()
+            ? $this->success("Module registration cache cleared successfully.")
+            : $this->warning("Module registration cache file does not exist.");
     }
 
     private function clearServiceRegistrationCache(): void

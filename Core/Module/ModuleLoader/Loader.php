@@ -5,19 +5,22 @@ declare(strict_types=1);
 namespace Forge\Core\Module\ModuleLoader;
 
 use Forge\CLI\Application;
+use Forge\CLI\Attributes\CoreCommand;
 use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Config\Config;
 use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
+use Forge\Core\Helpers\Version;
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\Attributes\Module;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
+use Forge\Core\Module\ModuleCache;
 use Forge\Core\Module\ModuleCommandCache;
-use Forge\Core\Services\ServiceRegistrationCache;
+use Forge\Core\Structure\StructureResolver;
 use Forge\Traits\ModuleHelper;
 use Forge\Traits\NamespaceHelper;
 use ReflectionClass;
@@ -31,85 +34,113 @@ final class Loader
 
     private array $modules = [];
     private array $moduleRequirements = [];
-    private array $moduleRegistry = [];
-    private ?array $sortedRegistryCache = null;
-    private string $registryFilePath =
-        BASE_PATH . "/storage/framework/cache/module_registry.php";
+
+    /** @var array<string, string> [name => path] e.g. ['ForgeRouter' => '/path/modules/ForgeRouter'] */
+    private array $moduleDirectories = [];
+
+    /** @var array<string, array{class: string, order: int, type: string, core: bool}> */
+    private array $moduleMetas = [];
+
     private array $earlyHooksRegistered = [];
     private bool $earlyHooksDiscovered = false;
     private array $modulesWithCommands = [];
 
-    /***
-     * @var Application $cliApplication
-     */
+    private ?string $modulesRootPath = null;
 
     public function __construct(
         private readonly Container $container,
         private readonly Config    $config,
     )
     {
-        $this->loadModuleRegistry();
     }
 
-    private function loadModuleRegistry(): void
+    private function getModulesRoot(): string
     {
-        $registryExist = FileExistenceCache::exists($this->registryFilePath);
-        if ($registryExist) {
-            $registry = include $this->registryFilePath;
-            $this->moduleRegistry = is_array($registry) ? $registry : [];
-            $this->invalidateSortedCache();
-            $this->cleanupRegistry();
+        if ($this->modulesRootPath === null) {
+            $this->modulesRootPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
+        }
+        return $this->modulesRootPath;
+    }
+
+    /**
+     * Discover module directories by scanning the modules/ folder.
+     * Convention: each subdirectory with src/{Name}Module.php is a module.
+     *
+     * @return array<string, string> [name => path]
+     */
+    private function discoverModuleDirectories(): array
+    {
+        $modulesDir = $this->getModulesRoot();
+        if (!is_dir($modulesDir)) {
+            return [];
+        }
+
+        $directories = [];
+        foreach (scandir($modulesDir) as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $path = "$modulesDir/$entry";
+            if (!is_dir($path)) {
+                continue;
+            }
+            $classFile = "$path/src/{$entry}Module.php";
+            if (is_file($classFile)) {
+                $directories[$entry] = $path;
+            }
+        }
+
+        return $directories;
+    }
+
+    private function resolveModuleClassName(string $moduleName): string
+    {
+        $modulesNamespace = StructureResolver::resolveModulesNamespace();
+        return $modulesNamespace . '\\' . $moduleName . '\\' . $moduleName . 'Module';
+    }
+
+    /**
+     * Load #[Module] attribute metadata from each discovered module class.
+     */
+    private function loadModuleMetas(): void
+    {
+        foreach ($this->moduleDirectories as $name => $path) {
+            $className = $this->resolveModuleClassName($name);
+
+            if (!class_exists($className)) {
+                continue;
+            }
+
+            try {
+                $reflection = ModuleFileDiscovery::getReflectionClass($className);
+                $attrs = $reflection->getAttributes(Module::class);
+                if (empty($attrs)) {
+                    continue;
+                }
+
+                $attr = $attrs[0]->newInstance();
+                $this->moduleMetas[$name] = [
+                    'class' => $className,
+                    'order' => $attr->order ?? PHP_INT_MAX,
+                    'type' => $attr->type ?? 'module',
+                    'core' => $attr->core ?? false,
+                ];
+            } catch (\ReflectionException $e) {
+                Logger::log("Failed to read #[Module] attribute for {$className}", $e->getMessage());
+            }
         }
     }
 
     /**
-     * Invalidates the sorted registry cache.
-     * Should be called whenever the module registry is modified.
+     * Returns modules sorted by #[Module(order: ...)].
+     *
+     * @return array<string, array{class: string, order: int, type: string, core: bool}>
      */
-    private function invalidateSortedCache(): void
+    private function getSortedModules(): array
     {
-        $this->sortedRegistryCache = null;
-    }
-
-    private function cleanupRegistry(): void
-    {
-        $hasChanges = false;
-
-        foreach ($this->moduleRegistry as $key => $moduleInfo) {
-            if (
-                !isset($moduleInfo["path"]) ||
-                !FileExistenceCache::isDir($moduleInfo["path"])
-            ) {
-                unset($this->moduleRegistry[$key]);
-                $hasChanges = true;
-                $this->info("Removing missing module: $key");
-            }
-        }
-
-        if ($hasChanges) {
-            $this->invalidateSortedCache();
-            $this->saveModuleRegistry();
-        }
-    }
-
-    private function saveModuleRegistry(): void
-    {
-        $fp = fopen($this->registryFilePath, "c+");
-        if ($fp && flock($fp, LOCK_EX)) {
-            ftruncate($fp, 0);
-            fwrite(
-                $fp,
-                "<?php return " . var_export($this->moduleRegistry, true) . ";",
-            );
-            fflush($fp);
-            flock($fp, LOCK_UN);
-            fclose($fp);
-        } else {
-            file_put_contents(
-                $this->registryFilePath,
-                "<?php return " . var_export($this->moduleRegistry, true) . ";",
-            );
-        }
+        $sorted = $this->moduleMetas;
+        uasort($sorted, fn(array $a, array $b): int => $a['order'] <=> $b['order']);
+        return $sorted;
     }
 
     /**
@@ -123,31 +154,20 @@ final class Loader
             return;
         }
 
-        if (!$this->isRegistryStale()) {
-            $this->registerAutoloadPathsFromRegistry();
+        $this->moduleDirectories = $this->discoverModuleDirectories();
 
-            if ($this->isCompiledHooksCacheValid()) {
-                $this->earlyHooksDiscovered = true;
-                return;
-            }
+        foreach ($this->moduleDirectories as $name => $path) {
+            $this->registerModuleAutoloadPath($name, $path);
+        }
 
-            foreach ($this->moduleRegistry as $moduleInfo) {
-                $this->registerEarlyHooksForModule($moduleInfo);
-            }
-
+        if ($this->isCompiledHooksCacheValid()) {
             $this->earlyHooksDiscovered = true;
             return;
         }
 
-        $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
-        $modules = ModuleFileDiscovery::discoverModulesInDirectory(
-            $moduleDirectory,
-        );
-
-        foreach ($modules as $module) {
-            $directoryName = basename($module["path"]);
-            $this->registerModuleAutoloadPath($directoryName, $module["path"]);
-            $this->registerEarlyHooksForModule($module);
+        foreach ($this->moduleDirectories as $name => $path) {
+            $className = $this->resolveModuleClassName($name);
+            $this->registerEarlyHooksForModule($className);
         }
 
         $this->earlyHooksDiscovered = true;
@@ -163,7 +183,7 @@ final class Loader
         if ($cacheMtime === false) {
             return false;
         }
-        $modulesPath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
+        $modulesPath = $this->getModulesRoot();
         if (!is_dir($modulesPath)) {
             return false;
         }
@@ -186,18 +206,14 @@ final class Loader
     /**
      * Register EARLY_BOOT and BEFORE_MODULE_LOAD hooks for a module without fully loading it.
      */
-    private function registerEarlyHooksForModule(array $moduleClass): void
+    private function registerEarlyHooksForModule(string $className): void
     {
-        $className = $moduleClass["name"];
-
         if (!class_exists($className)) {
             return;
         }
 
         try {
-            $reflectionClass = ModuleFileDiscovery::getReflectionClass(
-                $className,
-            );
+            $reflectionClass = ModuleFileDiscovery::getReflectionClass($className);
 
             $moduleAttributes = $reflectionClass->getAttributes(Module::class);
             if (empty($moduleAttributes)) {
@@ -289,18 +305,27 @@ final class Loader
 
     public function loadModules(): void
     {
-        $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
-
-        if ($this->isRegistryStale()) {
-            $this->discoverAndBuildRegistry($moduleDirectory);
-        } else {
-            $this->registerAutoloadPathsFromRegistry();
+        if (ModuleCache::isValid()) {
+            $cache = ModuleCache::load();
+            if ($cache !== null) {
+                $this->restoreFromCache($cache);
+                return;
+            }
         }
 
-        $cache = ServiceRegistrationCache::load();
-        if ($cache !== null && ServiceRegistrationCache::isValid($cache)) {
+        if (empty($this->moduleDirectories)) {
+            $this->moduleDirectories = $this->discoverModuleDirectories();
+
+            foreach ($this->moduleDirectories as $name => $path) {
+                $this->registerModuleAutoloadPath($name, $path);
+            }
+        }
+
+        if (!empty($this->moduleMetas)) {
             return;
         }
+
+        $this->loadModuleMetas();
 
         $this->container->startRecording();
         $this->registerAllModules();
@@ -309,111 +334,56 @@ final class Loader
 
     private function registerAllModules(): void
     {
-        foreach ($this->getSortedModuleRegistry() as $moduleInfo) {
-            $moduleName = basename($moduleInfo["path"]);
-            if (!$this->isModuleDisabled($moduleName) && !isset($this->modules[$moduleName])) {
-                $this->loadModuleByName($moduleInfo["name"]);
-            }
-        }
-    }
-
-    private function discoverAndBuildRegistry(string $moduleDirectory): void
-    {
-        $modules = ModuleFileDiscovery::discoverModulesInDirectory(
-            $moduleDirectory,
-        );
-
-        ModuleFileDiscovery::preloadAllModuleFiles($modules);
-
-        foreach ($modules as $module) {
-            $directoryName = basename($module["path"]);
-            $this->registerModuleAutoloadPath($directoryName, $module["path"]);
-        }
-
-        $hasChanges = false;
-        foreach ($modules as $module) {
-            $className = $module["name"];
-            if (
-                !isset($this->moduleRegistry[$className]) ||
-                $this->moduleRegistry[$className]["path"] !== $module["path"]
-            ) {
-                $this->moduleRegistry[$className] = $module;
-                $hasChanges = true;
-            }
-        }
-
-        if ($hasChanges) {
-            $this->invalidateSortedCache();
-            $this->saveModuleRegistry();
-        }
-    }
-
-    private function isRegistryStale(): bool
-    {
-        if (empty($this->moduleRegistry)) {
-            return true;
-        }
-
-        $moduleDirectory = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
-        if (!is_dir($moduleDirectory)) {
-            return true;
-        }
-
-        $knownModules = [];
-        foreach ($this->moduleRegistry as $moduleInfo) {
-            $dirName = basename($moduleInfo["path"]);
-            $knownModules[$dirName] = $moduleInfo["path"];
-        }
-
-        foreach (scandir($moduleDirectory) as $entry) {
-            if ($entry === "." || $entry === "..") {
+        foreach ($this->getSortedModules() as $name => $meta) {
+            if ($meta['core']) {
                 continue;
             }
-            $dir = $moduleDirectory . "/" . $entry;
-            if (!is_dir($dir)) {
+            if (!$this->isModuleDisabled($name) && !isset($this->modules[$name])) {
+                $this->loadModule($name);
+            }
+        }
+    }
+
+    public function loadCoreModules(): void
+    {
+        $coreModules = array_filter($this->moduleMetas, fn(array $m): bool => $m['core']);
+        if (empty($coreModules)) {
+            return;
+        }
+
+        foreach ($this->getSortedModules() as $name => $meta) {
+            if (!$meta['core']) {
                 continue;
             }
-            if (!isset($knownModules[$entry])) {
-                return true;
+            if (!$this->isModuleDisabled($name) && !isset($this->modules[$name])) {
+                $this->loadModule($name);
             }
-            if (!is_dir($knownModules[$entry])) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function registerAutoloadPathsFromRegistry(): void
-    {
-        foreach ($this->moduleRegistry as $moduleInfo) {
-            $directoryName = basename($moduleInfo["path"]);
-            $this->registerModuleAutoloadPath($directoryName, $moduleInfo["path"]);
         }
     }
 
+    /**
+     * Preload CLI modules. Called after loadModules() in CLI context.
+     */
     public function preloadCliModules(): void
     {
         $cachedModules = ModuleCommandCache::getModulesWithCommands();
 
         if (!empty($cachedModules) && ModuleCommandCache::isValid()) {
-            foreach ($this->getSortedModuleRegistry() as $moduleInfo) {
-                $moduleName = basename($moduleInfo["path"]);
+            foreach ($this->getSortedModules() as $name => $meta) {
                 if (
-                    in_array($moduleName, $cachedModules, true) &&
-                    !$this->isModuleDisabled($moduleName)
+                    in_array($name, $cachedModules, true) &&
+                    !$this->isModuleDisabled($name) &&
+                    !isset($this->modules[$name])
                 ) {
-                    $this->loadModuleByName($moduleInfo["name"]);
+                    $this->loadModule($name);
                 }
             }
             return;
         }
 
-        $hasCommands = false;
-        foreach ($this->getSortedModuleRegistry() as $moduleInfo) {
-            $moduleName = basename($moduleInfo["path"]);
-            if (!$this->isModuleDisabled($moduleName)) {
-                $this->loadModuleByName($moduleInfo["name"]);
+        foreach ($this->getSortedModules() as $name => $meta) {
+            if (!$this->isModuleDisabled($name) && !isset($this->modules[$name])) {
+                $this->loadModule($name);
             }
         }
 
@@ -424,29 +394,23 @@ final class Loader
 
     /**
      * Retrieves the module registry sorted by the 'order' key.
-     * Uses cached sorted result to avoid O(n log n) sorting on every call.
+     * Public API — returns same format as legacy implementation for backward compatibility.
      *
-     * @return array
+     * @return array<string, array{name: string, order: int, path: string, type: string}>
      */
     public function getSortedModuleRegistry(): array
     {
-        if ($this->sortedRegistryCache === null) {
-            $sortedRegistry = $this->moduleRegistry;
-
-            uasort($sortedRegistry, function ($a, $b) {
-                $orderA = $a["order"] ?? PHP_INT_MAX;
-                $orderB = $b["order"] ?? PHP_INT_MAX;
-
-                if ($orderA === $orderB) {
-                    return 0;
-                }
-                return $orderA < $orderB ? -1 : 1;
-            });
-
-            $this->sortedRegistryCache = $sortedRegistry;
+        $registry = [];
+        foreach ($this->getSortedModules() as $name => $meta) {
+            $path = $this->moduleDirectories[$name] ?? ($this->getModulesRoot() . '/' . $name);
+            $registry[$meta['class']] = [
+                'name' => $meta['class'],
+                'order' => $meta['order'],
+                'path' => $path,
+                'type' => $meta['type'],
+            ];
         }
-
-        return $this->sortedRegistryCache;
+        return $registry;
     }
 
     /**
@@ -458,46 +422,65 @@ final class Loader
         return in_array($moduleName, $disabledModules, true);
     }
 
-    public function loadModuleByName(string $moduleName): void
+    public function loadModuleByName(string $fqcn): void
     {
-        if (!isset($this->moduleRegistry[$moduleName])) {
+        $moduleName = $this->findModuleNameByClass($fqcn);
+        if ($moduleName === null || isset($this->modules[$moduleName])) {
             return;
         }
 
-        $moduleInfo = $this->moduleRegistry[$moduleName];
-        $this->loadModule($moduleInfo["path"], $moduleInfo);
-
+        $this->loadModule($moduleName);
         $this->checkModuleRequirements($moduleName);
     }
 
-    private function loadModule(string $modulePath, array $moduleClass): void
+    private function findModuleNameByClass(string $fqcn): ?string
     {
-        $moduleName = basename($modulePath);
-        $className = $moduleClass["name"];
+        foreach ($this->moduleMetas as $name => $meta) {
+            if ($meta['class'] === $fqcn) {
+                return $name;
+            }
+        }
+
+        // Fallback: extract from namespace convention
+        $modulesNamespace = StructureResolver::resolveModulesNamespace();
+        $prefix = $modulesNamespace . '\\';
+        if (str_starts_with($fqcn, $prefix)) {
+            $parts = explode('\\', substr($fqcn, strlen($prefix)));
+            return $parts[0] ?? null;
+        }
+
+        return null;
+    }
+
+    private function loadModule(string $moduleName): void
+    {
+        $meta = $this->moduleMetas[$moduleName] ?? null;
+        if ($meta === null) {
+            return;
+        }
+
+        $className = $meta['class'];
 
         try {
-            $reflectionClass = ModuleFileDiscovery::getReflectionClass(
-                $className,
-            );
+            $reflectionClass = ModuleFileDiscovery::getReflectionClass($className);
             $attributes = $reflectionClass->getAttributes(Module::class);
 
             if (!empty($attributes)) {
                 $moduleInstance = $attributes[0]->newInstance();
-                if (!$moduleInstance->core) {
-                    if ($this->isModuleDisabled($moduleName)) {
-                        $this->info(
-                            "Module {$moduleName} is disabled via config, skipping registration.",
-                        );
-                        return;
-                    }
 
-                    $this->registerModule(
-                        $moduleName,
-                        $className,
-                        $moduleInstance,
-                        $reflectionClass,
+                if ($this->isModuleDisabled($moduleName)) {
+                    $this->info(
+                        "Module {$moduleName} is disabled via config, skipping registration.",
                     );
+                    return;
                 }
+
+                $this->registerModule(
+                    $moduleName,
+                    $className,
+                    $moduleInstance,
+                    $reflectionClass,
+                );
             }
         } catch (\ReflectionException $e) {
             $this->error(
@@ -560,17 +543,206 @@ final class Loader
         );
     }
 
+    /**
+     * Restore module state from cached data, skipping directory scanning and reflection.
+     */
+    private function restoreFromCache(array $cache): void
+    {
+        $modules = $cache['modules'] ?? [];
+        if (empty($modules)) {
+            return;
+        }
+
+        foreach ($modules as $name => $data) {
+            $this->moduleDirectories[$name] = $data['path'];
+            $this->registerModuleAutoloadPath($name, $data['path']);
+            $this->moduleMetas[$name] = [
+                'class' => $data['class'],
+                'order' => $data['order'] ?? PHP_INT_MAX,
+                'type' => $data['type'] ?? 'module',
+                'core' => $data['core'] ?? false,
+            ];
+        }
+
+        $sorted = $this->moduleMetas;
+        uasort($sorted, fn(array $a, array $b): int => ($a['order'] ?? PHP_INT_MAX) <=> ($b['order'] ?? PHP_INT_MAX));
+
+        foreach ($sorted as $name => $meta) {
+            if (!isset($modules[$name])) {
+                continue;
+            }
+            $data = $modules[$name];
+
+            if ($this->isModuleDisabled($name)) {
+                continue;
+            }
+
+            $className = $data['class'];
+
+            if (isset($this->modules[$name])) {
+                continue;
+            }
+
+            $this->modules[$name] = $className;
+
+            if (!empty($data['config_defaults'])) {
+                $this->config->mergeModuleDefaults($data['config_defaults']);
+            }
+
+            if (!empty($data['structure'])) {
+                if ($this->container->has(StructureResolver::class)) {
+                    $structureResolver = $this->container->get(StructureResolver::class);
+                    $structureResolver->registerModuleStructure($name, $data['structure']);
+                }
+            }
+
+            if (!empty($data['compatibility'])) {
+                $compat = $data['compatibility'];
+                if (isset($compat['framework'])) {
+                    if (!Version::isVersionCompatible(Version::version(), $compat['framework'])) {
+                        throw new \RuntimeException(
+                            "Module '{$name}' is not compatible with the current framework version. " .
+                            "Requires framework version: {$compat['framework']}, current version: " . Version::version()
+                        );
+                    }
+                }
+                if (isset($compat['php'])) {
+                    if (!Version::isVersionCompatible(PHP_VERSION, $compat['php'])) {
+                        throw new \RuntimeException(
+                            "Module '{$name}' requires PHP version {$compat['php']} or higher. " .
+                            "Your current PHP version is " . PHP_VERSION
+                        );
+                    }
+                }
+            }
+
+            $hooksInstance = null;
+
+            foreach ($data['lifecycle_hooks'] ?? [] as $hook) {
+                if (in_array($hook['hook'], ['earlyBoot', 'beforeModuleLoad'], true)) {
+                    continue;
+                }
+                $hooksInstance = $hooksInstance ?? $this->container->make($className);
+                $hookName = LifecycleHookName::from($hook['hook']);
+                $callback = [$hooksInstance, $hook['method']];
+                if ($hook['forSelf']) {
+                    $wrappedCallback = function (...$args) use ($name, $callback) {
+                        $passedModuleName = $args[0] ?? '';
+                        if ($passedModuleName === $name) {
+                            call_user_func_array($callback, $args);
+                        }
+                    };
+                    HookManager::addHook($hookName, $wrappedCallback);
+                } else {
+                    HookManager::addHook($hookName, $callback);
+                }
+            }
+
+            foreach ($data['provides'] ?? [] as $provide) {
+                if (!$this->container->has($provide['interface'])) {
+                    $this->container->bind($provide['interface'], $provide['class']);
+                }
+            }
+
+            foreach ($data['services'] ?? [] as $service) {
+                $id = $service['id'] ?? $service['class'];
+                if (!$this->container->has($id)) {
+                    $this->container->bind($id, $service['class'], $service['singleton']);
+                }
+            }
+
+            if (PHP_SAPI === 'cli' && !empty($data['commands'])) {
+                $cliApplication = null;
+                try {
+                    if ($this->container->has(Application::class)) {
+                        $cliApplication = $this->container->get(Application::class);
+                    }
+                } catch (\Throwable $e) {
+                    Logger::log("Loader: failed to get CLI Application", $e->getMessage());
+                }
+                if ($cliApplication) {
+                    $hasCommands = false;
+                    foreach ($data['commands'] as $commandClass) {
+                        $hasCoreCommand = false;
+                        try {
+                            $cmdReflection = new \ReflectionClass($commandClass);
+                            $hasCoreCommand = !empty($cmdReflection->getAttributes(CoreCommand::class));
+                        } catch (\ReflectionException $e) {
+                        }
+                        $prefix = $hasCoreCommand ? '' : 'modules:';
+                        try {
+                            $cliApplication->registerCommandClass($commandClass, $prefix);
+                            $hasCommands = true;
+                        } catch (\Throwable $e) {
+                            Logger::log("Loader: failed to register cached command '{$commandClass}'", $e->getMessage());
+                        }
+                    }
+                    if ($hasCommands) {
+                        $this->recordModuleHasCommands($name);
+                    }
+                }
+            }
+
+            $reqInterfaces = $data['requires_interfaces'] ?? [];
+            $reqModules = $data['requires_modules'] ?? [];
+            if (!empty($reqInterfaces) || !empty($reqModules)) {
+                $this->moduleRequirements[$name] = [
+                    'interfaces' => $reqInterfaces,
+                    'modules' => $reqModules,
+                ];
+            }
+
+            $moduleInstance = $this->container->make($className);
+            if (method_exists($moduleInstance, 'register')) {
+                $moduleInstance->register($this->container);
+            }
+
+            if (isset($this->moduleRequirements[$name])) {
+                $this->checkModuleRequirements($name);
+            }
+
+            HookManager::triggerHook(
+                LifecycleHookName::AFTER_MODULE_REGISTER,
+                $name,
+                $className,
+                $moduleInstance,
+            );
+        }
+    }
+
     public function loadModuleByNamespace(string $namespacePrefix): void
     {
-        foreach ($this->moduleRegistry as $className => $moduleInfo) {
-            if (str_starts_with($className, $namespacePrefix)) {
-                $moduleName = basename($moduleInfo["path"]);
-                if (!isset($this->modules[$moduleName])) {
-                    $this->loadModule($moduleInfo["path"], $moduleInfo);
-                    $this->checkModuleRequirements($moduleName);
+        $modulesNamespace = StructureResolver::resolveModulesNamespace();
+        $prefix = $modulesNamespace . '\\';
+        if (!str_starts_with($namespacePrefix, $prefix)) {
+            return;
+        }
+
+        $moduleName = substr($namespacePrefix, strlen($prefix));
+        if ($moduleName === false || $moduleName === '') {
+            return;
+        }
+
+        // Strip any additional sub-namespace parts
+        $parts = explode('\\', $moduleName);
+        $moduleName = $parts[0];
+
+        if (isset($this->modules[$moduleName])) {
+            return;
+        }
+
+        // Ensure autoload path is registered
+        if (isset($this->moduleDirectories[$moduleName])) {
+            /** @psalm-suppress RedundantCondition */
+            if (!isset($this->moduleMetas[$moduleName])) {
+                $this->registerModuleAutoloadPath($moduleName, $this->moduleDirectories[$moduleName]);
+                $className = $this->resolveModuleClassName($moduleName);
+                if (class_exists($className)) {
+                    $this->loadModuleMetas();
                 }
-                return;
             }
+            $this->loadModule($moduleName);
+            $this->checkModuleRequirements($moduleName);
         }
     }
 
@@ -596,45 +768,34 @@ final class Loader
         return $this->modules;
     }
 
-    public function loadCoreModule(string $modulePath): void
+    /**
+     * Returns the internal module directories map.
+     */
+    public function getModuleDirectories(): array
     {
-        if (!FileExistenceCache::isDir($modulePath)) {
-            echo "Module path does not exist: $modulePath";
-            return;
-        }
+        return $this->moduleDirectories;
+    }
 
-        $moduleName = basename($modulePath);
+    /**
+     * Returns the internal module metas map.
+     */
+    public function getModuleMetas(): array
+    {
+        return $this->moduleMetas;
+    }
 
-        // Check if module is disabled before loading
-        if ($this->isModuleDisabled($moduleName)) {
-            return;
-        }
-
-        $srcPath = "$modulePath/src";
-
-        if (!FileExistenceCache::isDir($srcPath)) {
-            echo "Module source path does not exist: $srcPath";
-            return;
-        }
-
-        $this->registerModuleAutoloadPath($moduleName, $modulePath);
-
-        $modules = ModuleFileDiscovery::discoverModulesInDirectory(
-            dirname($srcPath),
-        );
-        $moduleClass = null;
-
-        foreach ($modules as $module) {
-            if (str_contains($module["path"], basename($modulePath))) {
-                $moduleClass = $module;
-                break;
-            }
-        }
-
-        if ($moduleClass) {
-            $this->loadModule($modulePath, $moduleClass);
-        } else {
-            echo "No module class found in: $srcPath";
-        }
+    /**
+     * Reset module state so a fresh full load can be triggered.
+     */
+    public function resetModules(): void
+    {
+        $this->modules = [];
+        $this->moduleRequirements = [];
+        $this->moduleDirectories = [];
+        $this->moduleMetas = [];
+        $this->earlyHooksRegistered = [];
+        $this->earlyHooksDiscovered = false;
+        $this->modulesWithCommands = [];
+        $this->modulesRootPath = null;
     }
 }
