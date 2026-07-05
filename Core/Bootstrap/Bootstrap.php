@@ -10,6 +10,7 @@ use Forge\Core\Config\EnvParser;
 use Forge\Core\Debug\Metrics;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
+use Forge\Core\ResetManager;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
 use ReflectionException;
@@ -52,6 +53,13 @@ final class Bootstrap
       self::initSession();
     }
     ContainerAppSetup::initOnce();
+    self::initResetManager();
+  }
+
+  private static function initResetManager(): void
+  {
+    ResetManager::onBefore([Metrics::class, 'reset']);
+    ResetManager::onBefore([FileExistenceCache::class, 'clear']);
   }
 
   private static function ensureStorageDirectory(): void

@@ -32,9 +32,6 @@ final class Autoloader
     /** @var array<string,string>  lowercase class → original class mapping for faster lookups */
     private static array $lowerClassMap = [];
 
-    /** @var array<string>  batch file existence checks */
-    private static array $fileCheckBatch = [];
-
     /** @var bool  flag to prevent cache saving during flush */
     private static bool $cacheSavingEnabled = true;
 
@@ -170,9 +167,7 @@ final class Autoloader
                 unset(self::$cache[$file]);
             }
 
-            // Batch file existence check for better performance
-            self::$fileCheckBatch[] = $file;
-            if (self::batchCheckFile($file)) {
+            if (self::fileExists($file)) {
                 $realPath = realpath($file);
                 if ($realPath !== false) {
                     self::cache($file);
@@ -268,28 +263,8 @@ final class Autoloader
         unset(self::$lowerClassMap[strtolower($class)]);
     }
 
-    /**
-     * Batch file existence check with fallback to direct file_exists
-     */
-    private static function batchCheckFile(string $file): bool
+    private static function fileExists(string $file): bool
     {
-        // If we have accumulated files, batch check them
-        if (count(self::$fileCheckBatch) >= 10) {
-            // Try to use FileExistenceCache if available
-            if (class_exists('\Forge\Core\Helpers\FileExistenceCache')) {
-                FileExistenceCache::preload(self::$fileCheckBatch);
-                self::$fileCheckBatch = [];
-                return FileExistenceCache::exists($file);
-            } else {
-                // Fallback to direct file checks
-                foreach (self::$fileCheckBatch as $checkFile) {
-                    clearstatcache(true, $checkFile);
-                }
-                self::$fileCheckBatch = [];
-            }
-        }
-
-        // For single checks, use available cache or fallback
         if (class_exists('\Forge\Core\Helpers\FileExistenceCache')) {
             return FileExistenceCache::exists($file);
         }

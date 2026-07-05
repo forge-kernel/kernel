@@ -10,6 +10,7 @@ use SessionHandlerInterface;
 final class MemorySessionDriver implements SessionDriverInterface, SessionHandlerInterface
 {
     private static array $storage = [];
+    private static array $timestamps = [];
     private bool $initialized = false;
 
     public function start(): void
@@ -47,23 +48,37 @@ final class MemorySessionDriver implements SessionDriverInterface, SessionHandle
 
     public function read(string $id): string
     {
+        if (isset(self::$storage[$id])) {
+            self::$timestamps[$id] = time();
+        }
         return self::$storage[$id] ?? '';
     }
 
     public function write(string $id, string $data): bool
     {
         self::$storage[$id] = $data;
+        self::$timestamps[$id] = time();
         return true;
     }
 
     public function destroy(string $id): bool
     {
-        unset(self::$storage[$id]);
+        unset(self::$storage[$id], self::$timestamps[$id]);
         return true;
     }
 
     public function gc(int $maxLifetime): int|false
     {
-        return 0;
+        $expired = 0;
+        $cutoff = time() - $maxLifetime;
+
+        foreach (self::$timestamps as $id => $timestamp) {
+            if ($timestamp < $cutoff) {
+                unset(self::$storage[$id], self::$timestamps[$id]);
+                $expired++;
+            }
+        }
+
+        return $expired;
     }
 }

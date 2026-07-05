@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Core\Debug;
 
-use Forge\Core\Config\EnvParser;
-
 class Metrics
 {
     private static array $timers = [];
@@ -17,9 +15,7 @@ class Metrics
             return self::$enabled;
         }
 
-        $envPath = BASE_PATH . "/.env";
-        EnvParser::load($envPath);
-        self::$enabled = (bool) ($_ENV['APP_METRICS_ENABLED'] ?? false);
+        self::$enabled = (bool) ($_ENV['APP_METRICS_ENABLED'] ?? getenv('APP_METRICS_ENABLED') ?? false);
         return self::$enabled;
     }
 
@@ -108,6 +104,12 @@ class Metrics
         }
 
         return $result;
+    }
+
+    public static function reset(): void
+    {
+        self::$timers = [];
+        self::$enabled = null;
     }
 
     public static function print(): void
