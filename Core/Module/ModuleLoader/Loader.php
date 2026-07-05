@@ -84,8 +84,8 @@ final class Loader
             if (!is_dir($path)) {
                 continue;
             }
-            $classFile = "$path/src/{$entry}Module.php";
-            if (is_file($classFile)) {
+            $moduleFiles = glob("$path/src/*Module.php");
+            if (!empty($moduleFiles)) {
                 $directories[$entry] = $path;
             }
         }
@@ -93,10 +93,24 @@ final class Loader
         return $directories;
     }
 
-    private function resolveModuleClassName(string $moduleName): string
+    private function resolveModuleClassName(string $moduleName): ?string
     {
         $modulesNamespace = StructureResolver::resolveModulesNamespace();
-        return $modulesNamespace . '\\' . $moduleName . '\\' . $moduleName . 'Module';
+        $candidate = $modulesNamespace . '\\' . $moduleName . '\\' . $moduleName . 'Module';
+        if (class_exists($candidate, false)) {
+            return $candidate;
+        }
+        $path = $this->moduleDirectories[$moduleName] ?? ($this->getModulesRoot() . '/' . $moduleName);
+        $moduleFiles = glob($path . '/src/*Module.php');
+        if (!empty($moduleFiles)) {
+            foreach ($moduleFiles as $file) {
+                $content = file_get_contents($file);
+                if ($content !== false && preg_match('/^namespace\s+([^;]+);\s*$/m', $content, $nsMatch) && preg_match('/^(final\s+)?class\s+(\w+)/m', $content, $classMatch)) {
+                    return trim($nsMatch[1]) . '\\' . $classMatch[2];
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -107,7 +121,7 @@ final class Loader
         foreach ($this->moduleDirectories as $name => $path) {
             $className = $this->resolveModuleClassName($name);
 
-            if (!class_exists($className)) {
+            if ($className === null || !class_exists($className)) {
                 continue;
             }
 
@@ -167,7 +181,9 @@ final class Loader
 
         foreach ($this->moduleDirectories as $name => $path) {
             $className = $this->resolveModuleClassName($name);
-            $this->registerEarlyHooksForModule($className);
+            if ($className !== null) {
+                $this->registerEarlyHooksForModule($className);
+            }
         }
 
         $this->earlyHooksDiscovered = true;
@@ -737,7 +753,7 @@ final class Loader
             if (!isset($this->moduleMetas[$moduleName])) {
                 $this->registerModuleAutoloadPath($moduleName, $this->moduleDirectories[$moduleName]);
                 $className = $this->resolveModuleClassName($moduleName);
-                if (class_exists($className)) {
+                if ($className !== null && class_exists($className)) {
                     $this->loadModuleMetas();
                 }
             }
