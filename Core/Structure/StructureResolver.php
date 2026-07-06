@@ -232,9 +232,9 @@ final class StructureResolver
         return $this->moduleStructures[$module];
     }
 
-    public function getAppNamespace(string $type): string
+    public function getAppNamespace(string $type, ?string $specificPath = null): string
     {
-        $path = $this->getAppPath($type);
+        $path = $specificPath ?? $this->getAppPath($type);
 
         if (str_starts_with($path, 'app/')) {
             $path = substr($path, 4);
@@ -245,9 +245,9 @@ final class StructureResolver
         return 'App\\' . $this->pathToNamespace($path);
     }
 
-    public function getModuleNamespace(string $module, string $type): string
+    public function getModuleNamespace(string $module, string $type, ?string $specificPath = null): string
     {
-        $path = $this->getModulePath($module, $type);
+        $path = $specificPath ?? $this->getModulePath($module, $type);
 
         if (str_starts_with($path, 'src/')) {
             $path = substr($path, 4);

@@ -6,7 +6,7 @@ return [
     'app' => [
         'controllers' => 'app/Controllers',
         'http' => 'app/Http',
-        'injectable' => 'app/Services',
+        'injectable' => ['app/Services', 'app/Listeners'],
         'migrations' => 'app/Database/Migrations',
         'views' => 'app/UI/views',
         'components' => 'app/UI/views/components',
@@ -23,7 +23,7 @@ return [
     'modules' => [
         'controllers' => 'src/Controllers',
         'http' => 'src/Http',
-        'injectable' => 'src/Services',
+        'injectable' => ['src/Services', 'src/Listeners', 'src/Providers'],
         'migrations' => 'src/Database/Migrations',
         'views' => 'src/UI/views',
         'components' => 'src/UI/views/components',

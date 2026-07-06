@@ -6,10 +6,11 @@ namespace Forge\Core\Module;
 
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
+use Forge\Core\Structure\StructureResolver;
 
 final class ModuleCommandCache
 {
-    private const CACHE_FILE = BASE_PATH . '/storage/framework/cache/module_command_map.php';
+    private const string CACHE_FILE = BASE_PATH . '/storage/framework/cache/module_command_map.php';
 
     public static function getCacheFile(): string
     {
@@ -18,6 +19,7 @@ final class ModuleCommandCache
 
     public static function load(): ?array
     {
+        FileExistenceCache::clearPath(self::CACHE_FILE);
         if (!FileExistenceCache::exists(self::CACHE_FILE)) {
             return null;
         }
@@ -62,7 +64,7 @@ final class ModuleCommandCache
     {
         static $dir = null;
         if ($dir === null) {
-            $dir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
+            $dir = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
         }
         return $dir;
     }
@@ -73,31 +75,82 @@ final class ModuleCommandCache
         if ($cache === null || !self::isValid($cache)) {
             return [];
         }
-        return $cache['modules_with_commands'] ?? [];
+        return array_keys($cache['modules_with_commands'] ?? []);
     }
 
-    public static function buildAndSave(array $modulesWithCommands): void
+    public static function getCommandsForModule(string $moduleName): array
     {
+        $cache = self::load();
+        if ($cache === null || !self::isValid($cache)) {
+            return [];
+        }
+        return $cache['modules_with_commands'][$moduleName] ?? [];
+    }
+
+    public static function build(StructureResolver $structureResolver, array $moduleDirectories): array
+    {
+        $modulesWithCommands = [];
         $moduleMtimes = [];
-        foreach ($modulesWithCommands as $moduleName) {
-            $dir = self::getModulesDir() . '/' . $moduleName;
-            if (is_dir($dir)) {
-                $moduleMtimes[$moduleName] = @filemtime($dir) ?: 0;
+
+        foreach ($moduleDirectories as $name => $path) {
+            try {
+                $commandsPaths = $structureResolver->getModulePaths($name, 'commands');
+            } catch (\InvalidArgumentException) {
+                $commandsPaths = ['src/Commands'];
+            }
+
+            foreach ($commandsPaths as $commandsPath) {
+                $dir = $path . '/' . $commandsPath;
+                if (!is_dir($dir)) {
+                    continue;
+                }
+
+                $files = glob($dir . '/*Command.php');
+                if (empty($files)) {
+                    continue;
+                }
+
+                foreach ($files as $file) {
+                    $content = file_get_contents($file);
+                    if ($content === false) {
+                        continue;
+                    }
+
+                    if (!str_contains($content, '#[Cli') && !str_contains($content, '#[Command(')) {
+                        continue;
+                    }
+
+                    if (preg_match('/^namespace\s+([^;]+);/m', $content, $nsMatch)
+                        && preg_match('/^(final\s+)?class\s+(\w+)/m', $content, $classMatch)) {
+                        $fqcn = trim($nsMatch[1]) . '\\' . $classMatch[2];
+                        $modulesWithCommands[$name][] = $fqcn;
+                    }
+                }
+            }
+
+            if (is_dir($path)) {
+                $moduleMtimes[$name] = @filemtime($path) ?: 0;
             }
         }
+
+        return [
+            'modules_with_commands' => $modulesWithCommands,
+            'module_mtimes' => $moduleMtimes,
+        ];
+    }
+
+    public static function buildAndSave(StructureResolver $structureResolver, array $moduleDirectories): void
+    {
+        $data = self::build($structureResolver, $moduleDirectories);
 
         $cacheDir = dirname(self::CACHE_FILE);
         if (!is_dir($cacheDir)) {
             mkdir($cacheDir, 0755, true);
         }
 
-        $data = [
-            'modules_with_commands' => array_values(array_unique($modulesWithCommands)),
-            'module_mtimes' => $moduleMtimes,
-        ];
-
         $content = '<?php return ' . var_export($data, true) . ';';
         file_put_contents(self::CACHE_FILE, $content);
+        FileExistenceCache::clearPath(self::CACHE_FILE);
     }
 
     public static function clear(): bool

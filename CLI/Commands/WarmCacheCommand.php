@@ -14,7 +14,7 @@ use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleCache;
 use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Module\ModuleLoader\Loader;
-use Forge\Core\Services\ModuleAssetManager;
+use Forge\Core\Structure\StructureResolver;
 use ReflectionClass;
 
 #[Cli(
@@ -29,14 +29,11 @@ final class WarmCacheCommand extends Command
 {
     use OutputHelper;
 
-    private const string MODULE_ASSETS_CACHE_FILE =
-        BASE_PATH . '/storage/framework/cache/module_assets.cache';
     private const string COMPILED_HOOKS_FILE =
         BASE_PATH . '/storage/framework/cache/compiled_hooks.php';
 
     public function __construct(
-        private readonly Container $container,
-        private readonly ModuleAssetManager $moduleAssetManager
+        private readonly Container $container
     ) {
     }
 
@@ -48,7 +45,6 @@ final class WarmCacheCommand extends Command
 
         $this->warmModuleRegistry();
         $this->warmCompiledHooks();
-        $this->warmModuleAssets();
         $this->warmModuleCaches();
         $this->warmModuleCommandCache();
         $this->warmHelperMap();
@@ -101,57 +97,29 @@ final class WarmCacheCommand extends Command
 
     }
 
-    private function warmModuleAssets(): void
+    private function warmModuleCaches(): void
     {
-        $this->info("Rebuilding module assets cache...");
+        $this->info("Warming module caches...");
 
         try {
-            if (FileExistenceCache::exists(self::MODULE_ASSETS_CACHE_FILE)) {
-                unlink(self::MODULE_ASSETS_CACHE_FILE);
-                FileExistenceCache::clearPath(self::MODULE_ASSETS_CACHE_FILE);
+            $warmers = $this->container->getAll(CacheWarmerInterface::class);
+
+            if (empty($warmers)) {
+                $this->warning("No module cache warmers found.");
+                return;
             }
 
-            $reflection = new \ReflectionClass(ModuleAssetManager::class);
-            $manifestProperty = $reflection->getProperty('manifest');
-            $manifestProperty->setAccessible(true);
-            $manifestProperty->setValue(null, []);
-
-            ModuleAssetManager::initialize();
-
-            FileExistenceCache::clearPath(self::MODULE_ASSETS_CACHE_FILE);
-            if (file_exists(self::MODULE_ASSETS_CACHE_FILE)) {
-                $this->success("Module assets cache rebuilt successfully.");
-            } else {
-                $this->warning("Module assets cache file was not created (no module assets found).");
+            foreach ($warmers as $warmer) {
+                $name = (new ReflectionClass($warmer))->getShortName();
+                $this->info("  {$name}...");
+                $warmer->warmCache();
             }
+
+            $this->success("Module caches warmed successfully (" . count($warmers) . " warmer(s)).");
         } catch (\Exception $e) {
-            $this->error("Failed to rebuild module assets cache: " . $e->getMessage());
+            $this->error("Failed to warm module caches: " . $e->getMessage());
         }
     }
-
-  private function warmModuleCaches(): void
-  {
-    $this->info("Warming module caches...");
-
-    try {
-      $warmers = $this->container->getAll(CacheWarmerInterface::class);
-
-      if (empty($warmers)) {
-        $this->warning("No module cache warmers found.");
-        return;
-      }
-
-      foreach ($warmers as $warmer) {
-        $name = (new ReflectionClass($warmer))->getShortName();
-        $this->info("  {$name}...");
-        $warmer->warmCache();
-      }
-
-      $this->success("Module caches warmed successfully (" . count($warmers) . " warmer(s)).");
-    } catch (\Exception $e) {
-      $this->error("Failed to warm module caches: " . $e->getMessage());
-    }
-  }
 
 
     private function warmModuleCommandCache(): void
@@ -162,20 +130,14 @@ final class WarmCacheCommand extends Command
             ModuleCommandCache::clear();
 
             $moduleLoader = $this->container->get(Loader::class);
-            $moduleLoader->loadModules();
+            $moduleDirectories = $moduleLoader->getModuleDirectories();
+            $structureResolver = new StructureResolver();
+            ModuleCommandCache::buildAndSave($structureResolver, $moduleDirectories);
 
-            $sortedRegistry = $moduleLoader->getSortedModuleRegistry();
-            foreach ($sortedRegistry as $moduleInfo) {
-                $moduleName = basename($moduleInfo["path"]);
-                if (!$moduleLoader->isModuleDisabled($moduleName)) {
-                    $moduleLoader->loadModuleByName($moduleInfo["name"]);
-                }
-            }
-
-            $modulesWithCommands = $moduleLoader->getModulesWithCommands();
-            if (!empty($modulesWithCommands)) {
-                ModuleCommandCache::buildAndSave($modulesWithCommands);
-                $this->success("Module command cache warmed successfully (" . count($modulesWithCommands) . " modules with commands).");
+            $cache = ModuleCommandCache::load();
+            $count = $cache ? count($cache['modules_with_commands'] ?? []) : 0;
+            if ($count > 0) {
+                $this->success("Module command cache warmed successfully ({$count} modules with commands).");
             } else {
                 $this->warning("No modules with commands found.");
             }

@@ -8,7 +8,6 @@ use Forge\CLI\Application;
 use Forge\CLI\Attributes\CoreCommand;
 use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Config\Config;
-use Forge\Core\DI\Attributes\Service;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
@@ -25,7 +24,6 @@ use Forge\Traits\ModuleHelper;
 use Forge\Traits\NamespaceHelper;
 use ReflectionClass;
 
-#[Service]
 final class Loader
 {
     use NamespaceHelper;
@@ -49,9 +47,8 @@ final class Loader
 
     public function __construct(
         private readonly Container $container,
-        private readonly Config    $config,
-    )
-    {
+        private readonly Config $config,
+    ) {
     }
 
     private function getModulesRoot(): string
@@ -261,13 +258,7 @@ final class Loader
                         $methodName = $method->getName();
                         $forSelf = $hookInstance->forSelf;
 
-                        $callback = function (...$args) use (
-                            $className,
-                            $methodName,
-                            $moduleName,
-                            $forSelf,
-                            $hookName,
-                        ) {
+                        $callback = function (...$args) use ($className, $methodName, $moduleName, $forSelf, $hookName, ) {
                             try {
                                 $moduleInstance = $this->container->make(
                                     $className,
@@ -310,11 +301,10 @@ final class Loader
      * Check if a hook was already registered during early discovery.
      */
     public function wasHookRegisteredEarly(
-        string            $className,
-        string            $methodName,
+        string $className,
+        string $methodName,
         LifecycleHookName $hookName,
-    ): bool
-    {
+    ): bool {
         $hookKey = "{$className}::{$methodName}::{$hookName->value}";
         return isset($this->earlyHooksRegistered[$hookKey]);
     }
@@ -382,12 +372,20 @@ final class Loader
      */
     public function preloadCliModules(): void
     {
-        $cachedModules = ModuleCommandCache::getModulesWithCommands();
+        if (empty($this->moduleDirectories)) {
+            $this->moduleDirectories = $this->discoverModuleDirectories();
+            foreach ($this->moduleDirectories as $name => $path) {
+                $this->registerModuleAutoloadPath($name, $path);
+            }
+        }
 
-        if (!empty($cachedModules) && ModuleCommandCache::isValid()) {
+        $cachedModules = ModuleCommandCache::load();
+
+        if ($cachedModules !== null && ModuleCommandCache::isValid($cachedModules)) {
+            $modulesWithCommands = array_keys($cachedModules['modules_with_commands'] ?? []);
             foreach ($this->getSortedModules() as $name => $meta) {
                 if (
-                    in_array($name, $cachedModules, true) &&
+                    in_array($name, $modulesWithCommands, true) &&
                     !$this->isModuleDisabled($name) &&
                     !isset($this->modules[$name])
                 ) {
@@ -397,14 +395,25 @@ final class Loader
             return;
         }
 
-        foreach ($this->getSortedModules() as $name => $meta) {
-            if (!$this->isModuleDisabled($name) && !isset($this->modules[$name])) {
-                $this->loadModule($name);
-            }
-        }
+        // First run — build command cache from file scanning (no module loading needed)
+        $structureResolver = $this->container->has(StructureResolver::class)
+            ? $this->container->get(StructureResolver::class)
+            : new StructureResolver();
+        ModuleCommandCache::buildAndSave($structureResolver, $this->moduleDirectories);
 
-        if (!empty($this->modulesWithCommands)) {
-            ModuleCommandCache::buildAndSave($this->modulesWithCommands);
+        // Reload cache and load only modules with commands
+        $freshCache = ModuleCommandCache::load();
+        if ($freshCache !== null) {
+            $modulesWithCommands = array_keys($freshCache['modules_with_commands'] ?? []);
+            foreach ($this->getSortedModules() as $name => $meta) {
+                if (
+                    in_array($name, $modulesWithCommands, true) &&
+                    !$this->isModuleDisabled($name) &&
+                    !isset($this->modules[$name])
+                ) {
+                    $this->loadModule($name);
+                }
+            }
         }
     }
 
@@ -506,12 +515,11 @@ final class Loader
     }
 
     private function registerModule(
-        string          $moduleName,
-        string          $className,
-        Module          $moduleInstance,
+        string $moduleName,
+        string $className,
+        Module $moduleInstance,
         ReflectionClass $reflectionClass,
-    ): void
-    {
+    ): void {
         $this->modules[$moduleName] = $className;
 
         if (PHP_SAPI === 'cli') {

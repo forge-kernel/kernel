@@ -39,7 +39,7 @@ final class RegisterModuleCommand
         $cliApplication = $this->container->get(Application::class);
         $registeredCount = 0;
 
-        $files = ModuleFileDiscovery::discoverPhpFilesInModule($modulePath, $moduleNamespace);
+        $files = ModuleFileDiscovery::discoverCommandFilesInModule($modulePath, $moduleNamespace);
 
         foreach ($files as $file) {
             if (str_starts_with($file['namespace'], $moduleNamespace . '\\Tests')) {
@@ -47,7 +47,7 @@ final class RegisterModuleCommand
             }
 
             $fqcn = $file['className'];
-            if (!class_exists($fqcn, false)) {
+            if (!class_exists($fqcn)) {
                 continue;
             }
 

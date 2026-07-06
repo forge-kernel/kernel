@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Forge\Core\Config;
 
-use Forge\Core\DI\Attributes\Service;
 use Forge\Core\Helpers\FileExistenceCache;
 
-#[Service]
 final class EnvParser
 {
     public static function load(string $path): void
@@ -79,7 +77,7 @@ final class EnvParser
             return false;
         }
         if (is_numeric($value)) {
-            return (strpos($value, '.') !== false) ? (float)$value : (int)$value;
+            return (strpos($value, '.') !== false) ? (float) $value : (int) $value;
         }
 
         if (strpos($value, '[') === 0 && strrpos($value, ']') === strlen($value) - 1) {

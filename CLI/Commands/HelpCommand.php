@@ -8,16 +8,13 @@ use Forge\CLI\Attributes\Arg;
 use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Attributes\Command as CommandAttr;
 use Forge\CLI\Command;
-use Forge\Core\Config\Config;
 use Forge\Core\Config\Environment;
-use Forge\Core\DI\Attributes\Service;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Services\TemplateGenerator;
 use Forge\Core\DI\Container;
 use ReflectionClass;
 use ReflectionException;
 
-#[Service]
 #[Cli(command: 'help', description: 'Displays help for available commands.')]
 class HelpCommand extends Command
 {

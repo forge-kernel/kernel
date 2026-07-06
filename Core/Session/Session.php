@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Forge\Core\Session;
 
-use Forge\Core\DI\Attributes\Service;
 use Forge\Traits\HasEnvironmentVariables;
 
-#[Service]
 final class Session implements SessionInterface
 {
     use HasEnvironmentVariables;

@@ -44,7 +44,7 @@ final class ServiceDiscoverSetup
             if (is_dir($fullPath)) {
                 $result[] = [
                     'path' => $fullPath,
-                    'namespace' => $structureResolver->getAppNamespace('injectable'),
+                    'namespace' => $structureResolver->getAppNamespace('injectable', $path),
                 ];
             }
         }
@@ -66,7 +66,7 @@ final class ServiceDiscoverSetup
                         if (is_dir($fullPath)) {
                             $result[] = [
                                 'path' => $fullPath,
-                                'namespace' => $structureResolver->getModuleNamespace($moduleName, 'injectable'),
+                                'namespace' => $structureResolver->getModuleNamespace($moduleName, 'injectable', $modulePath),
                             ];
                         }
                     }

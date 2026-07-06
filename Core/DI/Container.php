@@ -12,7 +12,6 @@ use Forge\Core\Cache\CacheManager;
 use Forge\Core\Cache\ProxyGenerator;
 use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Helpers\Logger;
-use Forge\Core\DI\Attributes\Service;
 use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
@@ -74,7 +73,7 @@ final class Container
     public function register(string $class): void
     {
         $reflection = new ReflectionClass($class);
-        $attributes = $reflection->getAttributes(Injectable::class) ?: $reflection->getAttributes(Service::class);
+        $attributes = $reflection->getAttributes(Injectable::class);
 
         if (!empty($attributes)) {
             $serviceAttr = $attributes[0]->newInstance();

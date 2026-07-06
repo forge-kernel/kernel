@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Core\Config;
 
-use Forge\Core\DI\Attributes\Service;
-
-#[Service]
 final class Environment
 {
     public static ?self $instance = null;
