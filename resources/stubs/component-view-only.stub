@@ -1,8 +1,0 @@
-<?php
-/**
- * @var string $type
- */
-?>
-<div class="font-bold <?= htmlspecialchars($type ?: 'info') ?>">
-    <?= htmlspecialchars($type ?: 'info') ?>
-</div>

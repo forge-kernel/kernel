@@ -16,15 +16,13 @@ use Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
 use Modules\{{ moduleName }}\Services\{{ serviceName }};
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\LifecycleHookName;
-use Forge\Core\DI\Attributes\Service;
 use Forge\CLI\Traits\OutputHelper;
 {{ structureAttribute }}
 
-#[Service]
-#[Module(name: '{{ moduleName }}', version: '{{ moduleVersion }}', description: '{{ moduleDescription }}', order: 99, author: 'Your Name', license: 'MIT', tags: [])]
+#[Module(name: '{{ moduleName }}', version: '{{ moduleVersion }}', description: '{{ moduleDescription }}', order: 99, author: 'Your Name', license: '', tags: [])]
 #[Compatibility(framework: '>={{ frameworkVersion }}', php: '>=8.3')]
 #[Provides(interface: {{ interfaceName }}::class, version: '{{ moduleVersion }}')]
-#[Repository(type: 'git', url: 'https://github.com/forge-kernel/kerenel-module-registry')]
+#[Repository(type: 'git', url: 'https://github.com/your-org/your-repo')]
 #[ConfigDefaults(defaults: [
     "{{ moduleConfig }}" => []
 ])]

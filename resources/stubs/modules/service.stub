@@ -3,14 +3,10 @@ declare(strict_types=1);
 
 namespace Modules\{{ moduleName }}\Services;
 
-use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Module\Attributes\Provides;
-use Forge\Core\Module\Attributes\Requires;
 use Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
 
-#[Injectable]
 #[Provides(interface: {{ interfaceName }}::class, version: '{{ moduleVersion }}')]
-#[Requires]
 final class {{ serviceName }} implements {{ interfaceName }}
 {
 	public function __construct(/** private AnotherServiceInterface $anotherService */)
