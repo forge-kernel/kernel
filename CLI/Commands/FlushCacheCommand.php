@@ -27,8 +27,6 @@ final class FlushCacheCommand extends Command
 
     private const string VIEW_CACHE_DIR = BASE_PATH . "/storage/framework/views";
     private const string APP_CACHE_DIR = BASE_PATH . "/storage/framework/cache";
-    private const string MODULE_REGISTRY_FILE =
-        BASE_PATH . "/kernel/Core/Module/module_registry.php";
 
     public function execute(array $args): int
     {
@@ -41,7 +39,6 @@ final class FlushCacheCommand extends Command
         $this->clearRolePermissionCache();
         $this->clearModuleCommandCache();
         $this->clearModuleCache();
-        $this->resetModuleRegistry();
 
         // Re-enable cache saving after flush completes
         Autoloader::enableCacheSaving();
@@ -135,14 +132,6 @@ final class FlushCacheCommand extends Command
         } else {
             $this->warning("Permission cache file does not exist.");
         }
-    }
-
-    private function resetModuleRegistry(): void
-    {
-        $content = "<?php return [];";
-        file_put_contents(self::MODULE_REGISTRY_FILE, $content)
-            ? $this->success("Module registry reset successfully.")
-            : $this->error("Failed to reset module registry.");
     }
 
     private function clearModuleCommandCache(): void
