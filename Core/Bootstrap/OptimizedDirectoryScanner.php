@@ -53,55 +53,6 @@ final class OptimizedDirectoryScanner
     }
 
     /**
-     * Get all base paths for service discovery efficiently
-     */
-    public static function getServiceDiscoveryPaths(?Config $config = null): array
-    {
-        $cacheKey = 'service_discovery_paths';
-        $cached = self::getCachedData($cacheKey);
-
-        if ($cached !== null) {
-            return $cached;
-        }
-
-        $basePaths = ['kernel/Core'];
-        $basePaths = array_merge($basePaths, self::getAttributeDiscoveryPaths($config));
-
-        self::setCachedData($cacheKey, $basePaths);
-        return $basePaths;
-    }
-
-    /**
-     * Get base paths for attribute-based discovery (app + enabled module src dirs).
-     * Excludes kernel paths since kernel classes are typically hardcoded.
-     */
-    public static function getAttributeDiscoveryPaths(?Config $config = null): array
-    {
-        $cacheKey = 'attribute_discovery_paths';
-        $cached = self::getCachedData($cacheKey);
-
-        if ($cached !== null) {
-            return $cached;
-        }
-
-        $basePaths = [];
-        if (FileExistenceCache::isDir(BASE_PATH . '/app')) {
-            $basePaths[] = 'app';
-        }
-
-        $modules = self::getModuleDirectories($config);
-        foreach ($modules as $moduleName => $modulePath) {
-            $srcPath = $modulePath . '/src';
-            if (FileExistenceCache::isDir($srcPath)) {
-                $basePaths[] = "modules/$moduleName/src";
-            }
-        }
-
-        self::setCachedData($cacheKey, $basePaths);
-        return $basePaths;
-    }
-
-    /**
      * Get controller directories efficiently
      */
     public static function getControllerDirectories(?Config $config = null): array

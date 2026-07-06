@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Injectable;
-
-#[Injectable]
 final class SplashScreenService
 {
     private const GREEN_BRIGHT = "\033[1;32m";

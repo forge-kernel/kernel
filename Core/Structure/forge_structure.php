@@ -5,7 +5,8 @@ return [
     'modules_namespace' => 'Modules',
     'app' => [
         'controllers' => 'app/Controllers',
-        'services' => 'app/Services',
+        'http' => 'app/Http',
+        'injectable' => 'app/Services',
         'migrations' => 'app/Database/Migrations',
         'views' => 'app/UI/views',
         'components' => 'app/UI/views/components',
@@ -15,12 +16,14 @@ return [
         'models' => 'app/Models',
         'dto' => 'app/Dto',
         'seeders' => 'app/Database/Seeders',
-        'middlewares' => 'app/Middlewares',
+        'middlewares' => ['app/Middlewares', 'app/Http/Middlewares', 'app/Controllers/Middlewares'],
         'languages' => 'app/Languages',
+        'support' => 'app/Support',
     ],
     'modules' => [
         'controllers' => 'src/Controllers',
-        'services' => 'src/Services',
+        'http' => 'src/Http',
+        'injectable' => 'src/Services',
         'migrations' => 'src/Database/Migrations',
         'views' => 'src/UI/views',
         'components' => 'src/UI/views/components',
@@ -30,7 +33,8 @@ return [
         'models' => 'src/Models',
         'dto' => 'src/Dto',
         'seeders' => 'src/Database/Seeders',
-        'middlewares' => 'src/Middlewares',
-        'languages' => 'src/Languages'
+        'middlewares' => ['src/Middlewares', 'src/Http/Middlewares', 'src/Controllers/Middlewares'],
+        'languages' => 'src/Languages',
+        'support' => 'src/Support',
     ],
 ];

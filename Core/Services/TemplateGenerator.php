@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Forge\Core\Services;
 
 use Exception;
-use Forge\Core\DI\Attributes\Injectable;
 
-#[Injectable]
 final class TemplateGenerator
 {
     private string $baseTemplatePath;

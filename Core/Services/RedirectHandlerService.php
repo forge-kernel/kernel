@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Session\SessionInterface;
 
-#[Injectable]
 final class RedirectHandlerService
 {
     private const string INTENDED_URL_KEY = 'redirect.intended_url';

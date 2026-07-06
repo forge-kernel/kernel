@@ -6,6 +6,7 @@ namespace Forge\Core\Bootstrap;
 
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
+use Forge\Core\Structure\StructureResolver;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -19,10 +20,35 @@ final class HelperDiscoverSetup
     private static function getHelperSearchPaths(): array
     {
         if (empty(self::$helperSearchPaths)) {
-            self::$helperSearchPaths = [
-                BASE_PATH . '/app/Support',
-                BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot(),
-            ];
+            $resolver = new StructureResolver();
+            $paths = [];
+
+            foreach ($resolver->getAppPaths('support') as $supportPath) {
+                $paths[] = BASE_PATH . '/' . $supportPath;
+            }
+
+            $modulesRoot = $resolver->getModulesRoot();
+            $modulesPath = BASE_PATH . '/' . $modulesRoot;
+            if (is_dir($modulesPath)) {
+                $moduleDirs = scandir($modulesPath);
+                foreach ($moduleDirs as $module) {
+                    if ($module === '.' || $module === '..') continue;
+                    $moduleDir = $modulesPath . '/' . $module;
+                    if (!is_dir($moduleDir)) continue;
+
+                    try {
+                        $moduleSupportPaths = $resolver->getModulePaths($module, 'support');
+                    } catch (\InvalidArgumentException) {
+                        $moduleSupportPaths = ['src/Support'];
+                    }
+
+                    foreach ($moduleSupportPaths as $supportPath) {
+                        $paths[] = $moduleDir . '/' . $supportPath;
+                    }
+                }
+            }
+
+            self::$helperSearchPaths = $paths;
         }
         return self::$helperSearchPaths;
     }
@@ -130,24 +156,8 @@ final class HelperDiscoverSetup
 
         foreach (self::getHelperSearchPaths() as $directory) {
             if (is_dir($directory)) {
-                if (str_ends_with($directory, '/Support')) {
-                    $files = array_merge($files, self::scanDirectory($directory));
-                    $scannedDirs[$directory] = @filemtime($directory) ?: 0;
-                    continue;
-                }
-
-                if (str_ends_with($directory, '/modules')) {
-                    $moduleIterator = new RecursiveDirectoryIterator($directory, RecursiveDirectoryIterator::SKIP_DOTS);
-                    foreach (new RecursiveIteratorIterator($moduleIterator, RecursiveIteratorIterator::SELF_FIRST) as $item) {
-                        if ($item->isDir() && $item->getFilename() === 'Support') {
-                            if (strpos($item->getPathname(), 'src/Support') !== false) {
-                                $files = array_merge($files, self::scanDirectory($item->getPathname()));
-                                $scannedDirs[$item->getPathname()] = @filemtime($item->getPathname()) ?: 0;
-                            }
-                        }
-                    }
-                    $scannedDirs[$directory] = @filemtime($directory) ?: 0;
-                }
+                $files = array_merge($files, self::scanDirectory($directory));
+                $scannedDirs[$directory] = @filemtime($directory) ?: 0;
             }
         }
 

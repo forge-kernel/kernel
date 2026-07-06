@@ -43,6 +43,8 @@ final class ContainerAppSetup
   {
     $container = Container::getInstance();
 
+    KernelServiceSetup::register($container);
+
     Metrics::start("helper_discovery");
     HelperDiscoverSetup::setup();
     Metrics::stop("helper_discovery");

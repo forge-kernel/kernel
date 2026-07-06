@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\ModuleHelper;
 use RecursiveIteratorIterator;
@@ -12,7 +11,6 @@ use RecursiveDirectoryIterator;
 use DirectoryIterator;
 use SplFileInfo;
 
-#[Injectable]
 final class ModuleAssetManager
 {
     private const CACHE_FILE = 'module_assets.cache';

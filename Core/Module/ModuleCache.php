@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace Forge\Core\Module;
 
-use Forge\CLI\Application;
 use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Attributes\Command as CommandAttr;
-use Forge\CLI\Attributes\CoreCommand;
 use Forge\CLI\Command;
-use Forge\Core\Config\Config;
 use Forge\Core\DI\Attributes\Injectable as InjectableAttr;
 use Forge\Core\DI\Attributes\Service as ServiceAttr;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
-use Forge\Core\Helpers\Version;
 use Forge\Core\Module\Attributes\Compatibility;
 use Forge\Core\Module\Attributes\ConfigDefaults;
 use Forge\Core\Module\Attributes\LifecycleHook as LifecycleHookAttr;
@@ -25,8 +21,6 @@ use Forge\Core\Module\Attributes\Repository;
 use Forge\Core\Module\Attributes\Requires;
 use Forge\Core\Module\Attributes\Structure;
 use Forge\Core\Module\Helpers\ModuleFileDiscovery;
-use Forge\Core\Module\ModuleLoader\Loader;
-use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Structure\StructureResolver;
 use ReflectionClass;
 
@@ -255,22 +249,31 @@ final class ModuleCache
         $commands = [];
 
         try {
-            $discoveryService = new AttributeDiscoveryService();
-            $classMap = $discoveryService->discover(
-                ["modules/{$moduleName}/src"],
-                [Cli::class, CommandAttr::class]
-            );
+            $modulePath = dirname($reflection->getFileName());
+            $moduleNamespace = $reflection->getNamespaceName();
+            $files = ModuleFileDiscovery::discoverPhpFilesInModule($modulePath, $moduleNamespace);
 
-            foreach ($classMap as $className => $metadata) {
-                $hasCli = in_array(Cli::class, $metadata['attributes'] ?? [], true);
-                $hasCmd = in_array(CommandAttr::class, $metadata['attributes'] ?? [], true);
-                if (!$hasCli && !$hasCmd) {
+            foreach ($files as $file) {
+                if (str_starts_with($file['namespace'], $moduleNamespace . '\\Tests')) {
                     continue;
                 }
-                if (!is_subclass_of($className, Command::class)) {
+
+                $fqcn = $file['className'];
+                if (!class_exists($fqcn, false)) {
                     continue;
                 }
-                $commands[] = $className;
+
+                try {
+                    $classReflection = new ReflectionClass($fqcn);
+                    $hasCmd = !empty($classReflection->getAttributes(Cli::class))
+                        || !empty($classReflection->getAttributes(CommandAttr::class));
+
+                    if ($hasCmd && $classReflection->isSubclassOf(Command::class)) {
+                        $commands[] = $fqcn;
+                    }
+                } catch (\ReflectionException $e) {
+                    continue;
+                }
             }
         } catch (\Throwable $e) {
             Logger::log("ModuleCache: failed to discover commands for module '{$moduleName}'", $e->getMessage());

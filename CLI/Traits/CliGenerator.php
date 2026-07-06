@@ -58,7 +58,7 @@ trait CliGenerator
             'model' => ['models', 'Model.php'],
             'view' => ['views', '/pages'],
             'command' => ['commands', 'Command.php'],
-            'service' => ['services', 'Service.php'],
+            'service' => ['injectable', 'Service.php'],
             'enum' => ['Enums', 'Enum.php'],
             'trait' => ['Traits', 'Trait.php'],
             'test' => ['tests', 'Test.php'],
@@ -77,7 +77,7 @@ trait CliGenerator
         [$structureKey, $suffix] = $map[$type];
         $subPath = $this->normalizePath($this->path ?? '');
 
-        if ($structureResolver && in_array($structureKey, ['controllers', 'middlewares', 'events', 'migrations', 'seeders', 'models', 'commands', 'services', 'tests', 'dto'])) {
+        if ($structureResolver && in_array($structureKey, ['controllers', 'middlewares', 'events', 'migrations', 'seeders', 'models', 'commands', 'injectable', 'tests', 'dto'])) {
             try {
                 if ($this->type === 'app') {
                     $structurePath = $structureResolver->getAppPath($structureKey);
@@ -202,7 +202,7 @@ trait CliGenerator
 
             $subdir = $fallbackMap[$type] ?? '';
 
-            if ($structureResolver && in_array($structureKey, ['controllers', 'middlewares', 'events', 'migrations', 'seeders', 'models', 'commands', 'services', 'tests', 'dto'])) {
+            if ($structureResolver && in_array($structureKey, ['controllers', 'middlewares', 'events', 'migrations', 'seeders', 'models', 'commands', 'injectable', 'tests', 'dto'])) {
                 try {
                     if ($this->type === 'app') {
                         $structurePath = $structureResolver->getAppPath($structureKey);

@@ -27,7 +27,7 @@ final class StructureInitCommand extends Command
 
     private const array ALL_TYPES = [
         'controllers',
-        'services',
+        'injectable',
         'migrations',
         'views',
         'components',

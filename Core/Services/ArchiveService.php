@@ -4,12 +4,10 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Injectable;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ZipArchive;
 
-#[Injectable]
 final class ArchiveService
 {
     public function createZip(string $sourceDir, string $zipFilePath): bool

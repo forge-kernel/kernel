@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Forge\Core\Bootstrap;
 
+use Forge\Core\Cache\CacheRebuildTrigger;
 use Forge\Core\Config\Config;
 use Forge\Core\Config\Environment;
 use Forge\Core\Config\EnvParser;
@@ -48,6 +49,9 @@ final class Bootstrap
   private function init(): void
   {
     self::ensureStorageDirectory();
+
+    CacheRebuildTrigger::process();
+
     self::initEnvironment();
     if (PHP_SAPI !== "cli") {
       self::initSession();

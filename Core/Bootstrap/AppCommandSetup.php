@@ -10,18 +10,14 @@ use Forge\CLI\Attributes\Command as CommandAttr;
 use Forge\CLI\Command;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
-use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Structure\StructureResolver;
 use Forge\Exceptions\MissingServiceException;
-use Forge\Traits\NamespaceHelper;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
 
 final class AppCommandSetup
 {
-    use NamespaceHelper;
-
     private const string CLASS_MAP_FILE = BASE_PATH . '/storage/framework/cache/app_command_class_map.php';
     private static ?self $instance = null;
 
@@ -67,56 +63,37 @@ final class AppCommandSetup
 
     private function buildClassMap(): void
     {
-        $appNamespace = 'App\\';
-
-        // 1. Attribute-based discovery: any class under app/ with #[Cli] or #[Command]
-        $discoveryService = new AttributeDiscoveryService();
-        $classMap = $discoveryService->discover(['app'], [Cli::class, CommandAttr::class]);
-
-        foreach ($classMap as $className => $metadata) {
-            if (!in_array(Cli::class, $metadata['attributes'] ?? [], true) && !in_array(CommandAttr::class, $metadata['attributes'] ?? [], true)) {
-                continue;
-            }
-
-            if (!is_subclass_of($className, Command::class)) {
-                continue;
-            }
-
-            if (!str_starts_with($className, $appNamespace)) {
-                continue;
-            }
-
-            // Exclude module classes; they are handled by RegisterModuleCommand.
-            $moduleNs = \Forge\Core\Structure\StructureResolver::resolveModulesNamespace();
-            if (str_starts_with($className, $moduleNs . '\\')) {
-                continue;
-            }
-
-            $this->classMap[$className] = $metadata['file'];
-        }
-
-        // 2. Legacy folder fallback: app/Commands/ (or configured commands path)
         $appCommandsPath = $this->resolveAppCommandsPath();
         if ($appCommandsPath === null || !is_dir($appCommandsPath)) {
             return;
         }
 
-        $directoryIterator = new RecursiveDirectoryIterator($appCommandsPath);
-        $iterator = new RecursiveIteratorIterator($directoryIterator);
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($appCommandsPath, RecursiveDirectoryIterator::SKIP_DOTS)
+        );
 
         foreach ($iterator as $file) {
-            if (!$file->isFile() || $file->getExtension() !== 'php' || !str_ends_with($file->getFilename(), 'Command.php')) {
+            if (!$file->isFile() || $file->getExtension() !== 'php') {
                 continue;
             }
 
             $filePath = $file->getRealPath();
-            $className = $this->extractClassNameFromFile($filePath);
+            require_once $filePath;
 
-            if ($className === null) {
+            $relativePath = str_replace($appCommandsPath . '/', '', $filePath);
+            $relativeClass = str_replace('/', '\\', substr($relativePath, 0, -4));
+            $className = 'App\\Commands\\' . $relativeClass;
+
+            if (!class_exists($className)) {
                 continue;
             }
 
-            if (!str_starts_with($className, 'App\\Commands\\')) {
+            $reflection = new ReflectionClass($className);
+
+            $hasAttr = !empty($reflection->getAttributes(Cli::class))
+                || !empty($reflection->getAttributes(CommandAttr::class));
+
+            if (!$hasAttr || !$reflection->isSubclassOf(Command::class)) {
                 continue;
             }
 
@@ -139,24 +116,6 @@ final class AppCommandSetup
         }
 
         return BASE_PATH . '/app/Commands';
-    }
-
-    private function extractClassNameFromFile(string $filePath): ?string
-    {
-        $contents = @file_get_contents($filePath);
-        if ($contents === false) {
-            return null;
-        }
-
-        if (!preg_match('/namespace\s+([^;]+);/', $contents, $namespaceMatch)) {
-            return null;
-        }
-
-        if (!preg_match('/(?:class|enum|trait|interface)\s+(\w+)/', $contents, $classMatch)) {
-            return null;
-        }
-
-        return trim($namespaceMatch[1]) . '\\' . $classMatch[1];
     }
 
     private function saveClassMap(): void

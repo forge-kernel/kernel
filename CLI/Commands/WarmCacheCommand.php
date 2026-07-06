@@ -8,16 +8,13 @@ use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Command;
 use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Bootstrap\ModuleSetup;
-use Forge\Core\Bootstrap\OptimizedDirectoryScanner;
 use Forge\Core\Contracts\Cache\CacheWarmerInterface;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleCache;
 use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Module\ModuleLoader\Loader;
-use Forge\Core\Services\AttributeDiscoveryService;
 use Forge\Core\Services\ModuleAssetManager;
-use Forge\Core\Services\ServiceRegistrationCache;
 use ReflectionClass;
 
 #[Cli(
@@ -48,16 +45,13 @@ final class WarmCacheCommand extends Command
         $this->info("Warming application caches...");
 
         ModuleCache::clear();
-        ServiceRegistrationCache::clear();
 
         $this->warmModuleRegistry();
         $this->warmCompiledHooks();
-    $this->warmModuleAssets();
-    $this->warmAttributeDiscovery();
-    $this->warmModuleCaches();
-    $this->warmModuleCommandCache();
+        $this->warmModuleAssets();
+        $this->warmModuleCaches();
+        $this->warmModuleCommandCache();
         $this->warmHelperMap();
-        $this->warmServiceRegistrations();
 
         $this->info("Application caches warmed successfully.");
         return 0;
@@ -135,36 +129,6 @@ final class WarmCacheCommand extends Command
         }
     }
 
-    private function warmAttributeDiscovery(): void
-    {
-        $this->info("Warming attribute discovery cache...");
-
-        try {
-            $discoveryService = new AttributeDiscoveryService();
-            $cacheFile = $discoveryService->getCacheFilePath();
-
-            if (FileExistenceCache::exists($cacheFile)) {
-                $discoveryService->clearCache();
-            }
-
-            $config = $this->container->get(\Forge\Core\Config\Config::class);
-            $basePaths = OptimizedDirectoryScanner::getServiceDiscoveryPaths($config);
-
-            $attributeClasses = [
-                \Forge\Core\DI\Attributes\Service::class,
-                \Forge\Core\DI\Attributes\Discoverable::class,
-                \Forge\Core\DI\Attributes\Injectable::class,
-                \Forge\Core\Module\Attributes\LifecycleHook::class,
-            ];
-
-            $discoveryService->discover($basePaths, $attributeClasses, false);
-
-            $this->success("Attribute discovery cache warmed successfully.");
-        } catch (\Exception $e) {
-            $this->error("Failed to warm attribute discovery cache: " . $e->getMessage());
-        }
-    }
-
   private function warmModuleCaches(): void
   {
     $this->info("Warming module caches...");
@@ -238,23 +202,4 @@ final class WarmCacheCommand extends Command
         }
     }
 
-    private function warmServiceRegistrations(): void
-    {
-        $this->info("Warming service registration cache...");
-
-        try {
-            ServiceRegistrationCache::clear();
-
-            \Forge\Core\Bootstrap\ServiceDiscoverSetup::setup($this->container);
-
-            $cacheFile = ServiceRegistrationCache::getCacheFilePath();
-            if (file_exists($cacheFile)) {
-                $this->success("Service registration cache warmed successfully.");
-            } else {
-                $this->warning("Service registration cache was not created.");
-            }
-        } catch (\Exception $e) {
-            $this->error("Failed to warm service registration cache: " . $e->getMessage());
-        }
-    }
 }

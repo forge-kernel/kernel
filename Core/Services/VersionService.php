@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
-use Forge\Core\DI\Attributes\Injectable;
 use InvalidArgumentException;
 
-#[Injectable]
 final class VersionService
 {
     public function detectModuleVersion(string $moduleName): string

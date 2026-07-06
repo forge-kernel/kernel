@@ -285,26 +285,65 @@ final class Autoloader
     }
 
     /**
-     * Load persistent class map from cache
+     * Load persistent class map from cache if still valid (source directories unchanged).
      */
     public static function loadClassMapCache(): void
     {
         if (!defined('BASE_PATH')) {
-            return; // Skip if BASE_PATH not defined yet
+            return;
         }
 
         $cacheFile = BASE_PATH . '/storage/framework/cache/class_file_map.php';
-        if (file_exists($cacheFile)) {
-            try {
-                $data = include $cacheFile;
-                if (is_array($data)) {
-                    self::$classFileMap = $data['classFileMap'] ?? [];
-                    self::$lowerClassMap = $data['lowerClassMap'] ?? [];
-                }
-            } catch (\Throwable $e) {
-                Logger::log("Autoloader: class file map cache corrupted", $e->getMessage());
+        if (!file_exists($cacheFile)) {
+            return;
+        }
+
+        try {
+            $data = include $cacheFile;
+            if (is_array($data) && self::isClassMapCacheValid($data)) {
+                self::$classFileMap = $data['classFileMap'] ?? [];
+                self::$lowerClassMap = $data['lowerClassMap'] ?? [];
+            }
+            // If invalid, leave maps empty so next autoload rebuilds them
+        } catch (\Throwable $e) {
+            Logger::log("Autoloader: class file map cache corrupted", $e->getMessage());
+        }
+    }
+
+    /**
+     * Validate that no monitored source directory has changed since the cache was saved.
+     */
+    private static function isClassMapCacheValid(array $data): bool
+    {
+        $dirMtimes = $data['dir_mtimes'] ?? [];
+        if (empty($dirMtimes)) {
+            return false;
+        }
+        foreach ($dirMtimes as $dir => $cachedMtime) {
+            if (!is_dir($dir)) {
+                return false;
+            }
+            $current = @filemtime($dir);
+            if ($current === false || $current > $cachedMtime) {
+                return false;
             }
         }
+        return true;
+    }
+
+    /**
+     * Collect mtimes for the directories registered in the namespace map.
+     */
+    private static function collectClassMapDirsMtimes(): array
+    {
+        $mtimes = [];
+        foreach (self::$map as $prefix => $dir) {
+            $mtime = @filemtime($dir);
+            if ($mtime !== false) {
+                $mtimes[$dir] = $mtime;
+            }
+        }
+        return $mtimes;
     }
 
     /**
@@ -325,6 +364,7 @@ final class Autoloader
         $data = [
             'classFileMap' => self::$classFileMap,
             'lowerClassMap' => self::$lowerClassMap,
+            'dir_mtimes' => self::collectClassMapDirsMtimes(),
         ];
 
         $content = '<?php return ' . var_export($data, true) . ';';
@@ -336,6 +376,25 @@ final class Autoloader
             rename($tempFile, $cacheFile);
         } else {
             file_put_contents($cacheFile, $content);
+        }
+    }
+
+    /**
+     * Clear the persistent class file map (both memory and disk).
+     * Safe to call in worker mode to force fresh class resolution on next request.
+     */
+    public static function clearClassFileMap(): void
+    {
+        self::$classFileMap = [];
+        self::$lowerClassMap = [];
+
+        if (!defined('BASE_PATH')) {
+            return;
+        }
+
+        $cacheFile = BASE_PATH . '/storage/framework/cache/class_file_map.php';
+        if (is_file($cacheFile)) {
+            @unlink($cacheFile);
         }
     }
 

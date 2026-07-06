@@ -18,7 +18,7 @@ final class StructureResolver
     private array $moduleStructures = [];
     private array $moduleAttributeStructures = [];
 
-    public function getAppPath(string $type): string
+    public function getAppPaths(string $type): array
     {
         if (empty($this->appStructure)) {
             $this->loadAppStructure();
@@ -28,10 +28,15 @@ final class StructureResolver
             throw new \InvalidArgumentException("Unknown structure type: {$type}");
         }
 
-        return $this->appStructure[$type];
+        return self::normalizeToArray($this->appStructure[$type]);
     }
 
-    public function getModulePath(string $module, string $type): string
+    public function getAppPath(string $type): string
+    {
+        return $this->getAppPaths($type)[0];
+    }
+
+    public function getModulePaths(string $module, string $type): array
     {
         if (!isset($this->moduleStructures[$module])) {
             $this->loadModuleStructure($module);
@@ -43,7 +48,12 @@ final class StructureResolver
             throw new \InvalidArgumentException("Unknown structure type: {$type} for module: {$module}");
         }
 
-        return $moduleStructure[$type];
+        return self::normalizeToArray($moduleStructure[$type]);
+    }
+
+    public function getModulePath(string $module, string $type): string
+    {
+        return $this->getModulePaths($module, $type)[0];
     }
 
     public function registerModuleStructure(string $module, array $structure): void
@@ -244,6 +254,11 @@ final class StructureResolver
         }
 
         return $this->getModulesNamespace() . '\\' . $module . '\\' . $this->pathToNamespace($path);
+    }
+
+    private static function normalizeToArray(string|array $value): array
+    {
+        return is_array($value) ? array_values($value) : [$value];
     }
 
     private function pathToNamespace(string $path): string

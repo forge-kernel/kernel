@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Forge\Core\Services;
 
 use Forge\Core\Config\Config;
-use Forge\Core\DI\Attributes\Injectable;
 use Forge\Core\Session\SessionInterface;
 
-#[Injectable]
 final class TokenManager
 {
     private const SESSION_KEY = '_csrf.tokens';

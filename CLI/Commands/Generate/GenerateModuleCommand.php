@@ -158,7 +158,7 @@ final class GenerateModuleCommand extends Command
         ];
 
         $commandsPath = $moduleStructure['commands'] ?? 'src/Commands';
-        $servicesPath = $moduleStructure['services'] ?? 'src/Services';
+        $servicesPath = $moduleStructure['injectable'] ?? 'src/Services';
         $contractsPath = 'src/Contracts';
         $modulePath = 'src';
 
