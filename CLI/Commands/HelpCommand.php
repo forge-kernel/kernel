@@ -371,18 +371,18 @@ class HelpCommand extends Command
             'generate:middleware' => [
                 'title' => 'Middleware Usage Tips',
                 'messages' => [
-                    'Auto-Registration',
-                    '  #[Middleware(group: "web", order: 1)]',
+                    'Module Registration (in your module register() method)',
+                    '  ForgeRouterModule::registerMiddleware(MyMiddleware::class, "web", 100);',
                     '',
                     'Applying to Controllers',
                     '  Group: #[UseMiddleware("web")]',
                     '  Class: #[UseMiddleware("\\Modules\\Module\\Middlewares\\Middleware")]',
                     '  (No ::class needed)',
                     '',
-                    'Register in config/middleware.php',
+                    'Configure in config/middleware.php',
                     '  Add to existing groups (web, api, global)',
                     '  Create new middleware groups',
-                    '  Override kernel-provided middleware',
+                    '  Override module-provided middleware order',
                 ],
             ],
             'generate:model' => [
