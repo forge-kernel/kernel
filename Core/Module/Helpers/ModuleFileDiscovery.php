@@ -46,6 +46,11 @@ final class ModuleFileDiscovery
         $phpFiles = [];
 
         foreach ($iterator as $file) {
+            $relativePath = str_replace($modulePath, '', $file->getPathname());
+            if (preg_match('#[/\\\\](tests?)[/\\\\]#i', $relativePath)) {
+                continue;
+            }
+
             if ($file->isFile() && $file->getExtension() === 'php') {
                 $filePath = $file->getRealPath();
                 $pathsToPreload[] = $filePath;
