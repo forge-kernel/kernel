@@ -19,6 +19,7 @@ return [
         'middlewares' => ['app/Middlewares', 'app/Http/Middlewares', 'app/Controllers/Middlewares'],
         'languages' => 'app/Languages',
         'support' => 'app/Support',
+        'templates' => 'app/Common/Templates',
     ],
     'modules' => [
         'controllers' => 'src/Controllers',
@@ -36,5 +37,6 @@ return [
         'middlewares' => ['src/Middlewares', 'src/Http/Middlewares', 'src/Controllers/Middlewares'],
         'languages' => 'src/Languages',
         'support' => 'src/Support',
+        'templates' => 'src/Common/Templates',
     ],
 ];
