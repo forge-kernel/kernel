@@ -22,7 +22,7 @@ final class ModuleHelper
 
   public static function extractModuleNameFromNamespace(string $namespace): ?string
   {
-    if (preg_match('/^App\\\\Modules\\\\([^\\\\]+)/', $namespace, $matches)) {
+    if (preg_match('/^Modules\\\\([^\\\\]+)/', $namespace, $matches)) {
       return $matches[1];
     }
     return null;

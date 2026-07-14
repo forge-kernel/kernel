@@ -14,6 +14,7 @@ use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\Core\Module\ModuleCache;
 use Forge\Core\Module\ModuleLoader\Loader;
+use Forge\Core\Structure\StructureResolver;
 use Forge\Core\Session\SessionInterface;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
@@ -58,6 +59,10 @@ final class ModuleSetup
                 config: $container->get(Config::class),
             );
         });
+
+        if (!$container->has(StructureResolver::class)) {
+            $container->singleton(StructureResolver::class, fn() => new StructureResolver());
+        }
 
         if ($container->has(SessionInterface::class)) {
             $session = $container->get(SessionInterface::class);

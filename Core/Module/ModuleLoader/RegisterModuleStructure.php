@@ -36,7 +36,7 @@ final readonly class RegisterModuleStructure
   private function extractModuleName(): ?string
   {
     $className = $this->reflectionClass->getName();
-    if (preg_match('/App\\\\Modules\\\\([^\\\\]+)\\\\/', $className, $matches)) {
+    if (preg_match('/Modules\\\\([^\\\\]+)\\\\/', $className, $matches)) {
       return $matches[1];
     }
     return null;
