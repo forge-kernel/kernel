@@ -18,7 +18,6 @@ use Forge\Core\Module\Helpers\ModuleFileDiscovery;
 use Forge\Core\Module\HookManager;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\Core\Module\ModuleCache;
-use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Structure\StructureResolver;
 use Forge\Traits\ModuleHelper;
 use Forge\Traits\NamespaceHelper;
@@ -41,7 +40,6 @@ final class Loader
 
     private array $earlyHooksRegistered = [];
     private bool $earlyHooksDiscovered = false;
-    private array $modulesWithCommands = [];
 
     private ?string $modulesRootPath = null;
 
@@ -379,40 +377,9 @@ final class Loader
             }
         }
 
-        $cachedModules = ModuleCommandCache::load();
-
-        if ($cachedModules !== null && ModuleCommandCache::isValid($cachedModules)) {
-            $modulesWithCommands = array_keys($cachedModules['modules_with_commands'] ?? []);
-            foreach ($this->getSortedModules() as $name => $meta) {
-                if (
-                    in_array($name, $modulesWithCommands, true) &&
-                    !$this->isModuleDisabled($name) &&
-                    !isset($this->modules[$name])
-                ) {
-                    $this->loadModule($name);
-                }
-            }
-            return;
-        }
-
-        // First run — build command cache from file scanning (no module loading needed)
-        $structureResolver = $this->container->has(StructureResolver::class)
-            ? $this->container->get(StructureResolver::class)
-            : new StructureResolver();
-        ModuleCommandCache::buildAndSave($structureResolver, $this->moduleDirectories);
-
-        // Reload cache and load only modules with commands
-        $freshCache = ModuleCommandCache::load();
-        if ($freshCache !== null) {
-            $modulesWithCommands = array_keys($freshCache['modules_with_commands'] ?? []);
-            foreach ($this->getSortedModules() as $name => $meta) {
-                if (
-                    in_array($name, $modulesWithCommands, true) &&
-                    !$this->isModuleDisabled($name) &&
-                    !isset($this->modules[$name])
-                ) {
-                    $this->loadModule($name);
-                }
+        foreach ($this->getSortedModules() as $name => $meta) {
+            if (!$this->isModuleDisabled($name) && !isset($this->modules[$name])) {
+                $this->loadModule($name);
             }
         }
     }
@@ -522,9 +489,6 @@ final class Loader
     ): void {
         $this->modules[$moduleName] = $className;
 
-        if (PHP_SAPI === 'cli') {
-            new RegisterModuleCommand($this->container, $reflectionClass)->init();
-        }
         new RegisterModuleConfig($this->config, $reflectionClass)->init();
         if (
             $this->container->has(
@@ -558,6 +522,9 @@ final class Loader
         }
         if (method_exists($moduleInstance, "registerIncludes")) {
             $moduleInstance->registerIncludes();
+        }
+        if (PHP_SAPI === 'cli' && method_exists($moduleInstance, "registerCommands")) {
+            $moduleInstance->registerCommands();
         }
 
         new RegisterModuleService($this->container, $reflectionClass)->init();
@@ -647,6 +614,9 @@ final class Loader
             if (method_exists($moduleInstance, 'registerIncludes')) {
                 $moduleInstance->registerIncludes();
             }
+            if (PHP_SAPI === 'cli' && method_exists($moduleInstance, 'registerCommands')) {
+                $moduleInstance->registerCommands();
+            }
 
             $hooksInstance = null;
 
@@ -680,38 +650,6 @@ final class Loader
                 $id = $service['id'] ?? $service['class'];
                 if (!$this->container->has($id)) {
                     $this->container->bind($id, $service['class'], $service['singleton']);
-                }
-            }
-
-            if (PHP_SAPI === 'cli' && !empty($data['commands'])) {
-                $cliApplication = null;
-                try {
-                    if ($this->container->has(Application::class)) {
-                        $cliApplication = $this->container->get(Application::class);
-                    }
-                } catch (\Throwable $e) {
-                    Logger::log("Loader: failed to get CLI Application", $e->getMessage());
-                }
-                if ($cliApplication) {
-                    $hasCommands = false;
-                    foreach ($data['commands'] as $commandClass) {
-                        $hasCoreCommand = false;
-                        try {
-                            $cmdReflection = new \ReflectionClass($commandClass);
-                            $hasCoreCommand = !empty($cmdReflection->getAttributes(CoreCommand::class));
-                        } catch (\ReflectionException $e) {
-                        }
-                        $prefix = $hasCoreCommand ? '' : 'modules:';
-                        try {
-                            $cliApplication->registerCommandClass($commandClass, $prefix);
-                            $hasCommands = true;
-                        } catch (\Throwable $e) {
-                            Logger::log("Loader: failed to register cached command '{$commandClass}'", $e->getMessage());
-                        }
-                    }
-                    if ($hasCommands) {
-                        $this->recordModuleHasCommands($name);
-                    }
                 }
             }
 
@@ -783,18 +721,6 @@ final class Loader
         return isset($this->modules[$moduleClassName]);
     }
 
-    public function recordModuleHasCommands(string $moduleName): void
-    {
-        if (!in_array($moduleName, $this->modulesWithCommands, true)) {
-            $this->modulesWithCommands[] = $moduleName;
-        }
-    }
-
-    public function getModulesWithCommands(): array
-    {
-        return $this->modulesWithCommands;
-    }
-
     public function getModules(): array
     {
         return $this->modules;
@@ -827,7 +753,6 @@ final class Loader
         $this->moduleMetas = [];
         $this->earlyHooksRegistered = [];
         $this->earlyHooksDiscovered = false;
-        $this->modulesWithCommands = [];
         $this->modulesRootPath = null;
     }
 }

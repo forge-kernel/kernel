@@ -20,10 +20,8 @@ final class CacheRebuildTrigger
 
     private const array CACHE_FILES = [
         '/storage/framework/cache/module_registrations.php',
-        '/storage/framework/cache/module_command_map.php',
         '/storage/framework/cache/class_file_map.php',
         '/storage/framework/cache/compiled_hooks.php',
-        '/storage/framework/cache/module_assets.cache',
         '/storage/framework/cache/controller-map.php',
         '/storage/framework/cache/role_cache.php',
         '/storage/framework/cache/permissions_cache.php',

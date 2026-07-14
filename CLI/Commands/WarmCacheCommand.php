@@ -12,7 +12,6 @@ use Forge\Core\Contracts\Cache\CacheWarmerInterface;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleCache;
-use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Module\ModuleLoader\Loader;
 use Forge\Core\Structure\StructureResolver;
 use ReflectionClass;
@@ -46,7 +45,6 @@ final class WarmCacheCommand extends Command
         $this->warmModuleRegistry();
         $this->warmCompiledHooks();
         $this->warmModuleCaches();
-        $this->warmModuleCommandCache();
 
         $this->info("Application caches warmed successfully.");
         return 0;
@@ -120,29 +118,5 @@ final class WarmCacheCommand extends Command
         }
     }
 
-
-    private function warmModuleCommandCache(): void
-    {
-        $this->info("Warming module command cache...");
-
-        try {
-            ModuleCommandCache::clear();
-
-            $moduleLoader = $this->container->get(Loader::class);
-            $moduleDirectories = $moduleLoader->getModuleDirectories();
-            $structureResolver = new StructureResolver();
-            ModuleCommandCache::buildAndSave($structureResolver, $moduleDirectories);
-
-            $cache = ModuleCommandCache::load();
-            $count = $cache ? count($cache['modules_with_commands'] ?? []) : 0;
-            if ($count > 0) {
-                $this->success("Module command cache warmed successfully ({$count} modules with commands).");
-            } else {
-                $this->warning("No modules with commands found.");
-            }
-        } catch (\Exception $e) {
-            $this->error("Failed to warm module command cache: " . $e->getMessage());
-        }
-    }
 
 }

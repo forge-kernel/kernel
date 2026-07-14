@@ -6,6 +6,7 @@ namespace Forge\CLI;
 
 use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Attributes\Command;
+use Forge\CLI\Attributes\CoreCommand;
 use Forge\CLI\Commands\Assets\AssetLinkCommand;
 use Forge\CLI\Commands\Assets\AssetUnlinkCommand;
 use Forge\CLI\Commands\FlushCacheCommand;
@@ -47,7 +48,6 @@ use Forge\CLI\Commands\Registry\BlueprintVersionCommand;
 use Forge\CLI\Commands\Dev\DevStructureAddCommand;
 use Forge\CLI\Commands\StructureInfoCommand;
 use Forge\CLI\Commands\StructureInitCommand;
-use Forge\Core\Bootstrap\AppCommandSetup;
 use Forge\Core\Config\Environment;
 use Forge\Core\DI\Container;
 use Forge\Core\Helpers\FileExistenceCache;
@@ -75,7 +75,6 @@ final class Application
         $this->container = $container;
 
         $this->registerCoreCommands();
-        $this->registerAppCommandsFromCache();
     }
 
     /**
@@ -132,7 +131,9 @@ final class Application
             $this->container->register($commandClass);
 
             $commandName = $commandInstance->command;
-            if ($prefix && !str_starts_with($commandName, $prefix)) {
+            $isCoreCommand = !empty($reflectionClass->getAttributes(CoreCommand::class));
+
+            if (!$isCoreCommand && $prefix && !str_starts_with($commandName, $prefix)) {
                 $commandName = $prefix . $commandName;
             }
 
@@ -190,24 +191,6 @@ final class Application
 
         foreach ($devCommands as $commandClass) {
             $this->registerCommandClass($commandClass, "dev:");
-        }
-    }
-
-    private function registerAppCommandsFromCache(): void
-    {
-        $setup = AppCommandSetup::getInstance($this->container);
-        $classMap = $setup->getClassMap();
-
-        foreach ($classMap as $className => $filePath) {
-            if (!class_exists($className)) {
-                include_once $filePath;
-            }
-
-            if (!class_exists($className)) {
-                continue;
-            }
-
-            $this->registerAppCommandClass($className);
         }
     }
 

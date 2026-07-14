@@ -10,7 +10,6 @@ use Forge\CLI\Command;
 use Forge\CLI\Traits\OutputHelper;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Module\ModuleCache;
-use Forge\Core\Module\ModuleCommandCache;
 use Forge\Core\Autoloader;
 
 #[Cli(
@@ -37,7 +36,6 @@ final class FlushCacheCommand extends Command
         $this->clearViewCache();
         $this->clearGeneralCache();
         $this->clearRolePermissionCache();
-        $this->clearModuleCommandCache();
         $this->clearModuleCache();
 
         // Re-enable cache saving after flush completes
@@ -132,13 +130,6 @@ final class FlushCacheCommand extends Command
         } else {
             $this->warning("Permission cache file does not exist.");
         }
-    }
-
-    private function clearModuleCommandCache(): void
-    {
-        ModuleCommandCache::clear()
-            ? $this->success("Module command cache cleared successfully.")
-            : $this->warning("Module command cache file does not exist.");
     }
 
     private function clearModuleCache(): void

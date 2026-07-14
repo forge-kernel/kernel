@@ -10,7 +10,6 @@ return [
         'migrations' => 'app/Database/Migrations',
         'views' => 'app/UI/views',
         'components' => 'app/UI/views/components',
-        'commands' => 'app/Commands',
         'events' => 'app/Events',
         'tests' => 'app/tests',
         'models' => 'app/Models',
@@ -23,6 +22,7 @@ return [
         'includes' => [
             'app/Support/helpers.php',
         ],
+        'commands' => [],
     ],
     'modules' => [
         'controllers' => 'src/Controllers',

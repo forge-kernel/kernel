@@ -49,7 +49,7 @@ final class ContainerCLISetup
         });
 
         ServiceDiscoverSetup::setup($container);
-        AppCommandSetup::getInstance($container);
+        AppCommandSetup::getInstance($container)->init();
 
         self::$cliContainerSetup = true;
 
