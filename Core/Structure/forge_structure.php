@@ -20,6 +20,9 @@ return [
         'languages' => 'app/Common/Languages',
         'support' => 'app/Support',
         'templates' => 'app/Common/Templates',
+        'includes' => [
+            'app/Support/helpers.php',
+        ],
     ],
     'modules' => [
         'controllers' => 'src/Controllers',
@@ -35,8 +38,7 @@ return [
         'dto' => 'src/Dto',
         'seeders' => 'src/Database/Seeders',
         'middlewares' => ['src/Middlewares', 'src/Http/Middlewares', 'src/Controllers/Middlewares'],
-        'languages' => 'src/Common/Languages',
-        'support' => 'src/Support',
+        'languages' => 'src/Languages',
         'templates' => 'src/Common/Templates',
     ],
 ];

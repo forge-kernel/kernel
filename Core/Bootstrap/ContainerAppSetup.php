@@ -17,6 +17,7 @@ use ReflectionException;
 
 final class ContainerAppSetup
 {
+  use LoadsIncludes;
   private static bool $containerLoaded = false;
 
   /**
@@ -46,7 +47,7 @@ final class ContainerAppSetup
     KernelServiceSetup::register($container);
 
     Metrics::start("helper_discovery");
-    HelperDiscoverSetup::setup();
+    self::loadIncludes();
     Metrics::stop("helper_discovery");
 
     $container->singleton(Config::class, function () {

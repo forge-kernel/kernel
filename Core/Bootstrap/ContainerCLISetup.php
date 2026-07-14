@@ -9,7 +9,6 @@ use Forge\CLI\Commands\HelpCommand;
 use Forge\Core\DI\Container;
 use Forge\Exceptions\MissingServiceException;
 use Forge\Exceptions\ResolveParameterException;
-use Forge\Core\Bootstrap\HelperDiscoverSetup;
 use Forge\Core\Bootstrap\ModuleSetup;
 use Forge\Core\Bootstrap\ServiceDiscoverSetup;
 use Forge\Core\Bootstrap\SessionSetup;
@@ -18,6 +17,8 @@ use ReflectionException;
 
 final class ContainerCLISetup
 {
+    use LoadsIncludes;
+
     private static bool $cliContainerSetup = false;
 
     /**
@@ -32,7 +33,7 @@ final class ContainerCLISetup
         }
 
         $container = Container::getInstance();
-        HelperDiscoverSetup::setup();
+        self::loadIncludes();
         SessionSetup::setup($container);
 
         $container->singleton(Application::class, function () use ($container) {

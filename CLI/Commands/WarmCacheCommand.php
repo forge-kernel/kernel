@@ -47,7 +47,6 @@ final class WarmCacheCommand extends Command
         $this->warmCompiledHooks();
         $this->warmModuleCaches();
         $this->warmModuleCommandCache();
-        $this->warmHelperMap();
 
         $this->info("Application caches warmed successfully.");
         return 0;
@@ -143,24 +142,6 @@ final class WarmCacheCommand extends Command
             }
         } catch (\Exception $e) {
             $this->error("Failed to warm module command cache: " . $e->getMessage());
-        }
-    }
-
-    private function warmHelperMap(): void
-    {
-        $this->info("Warming helper map cache...");
-
-        $cacheFile = BASE_PATH . '/storage/framework/cache/helper-map.php';
-        if (file_exists($cacheFile)) {
-            @unlink($cacheFile);
-        }
-
-        \Forge\Core\Bootstrap\HelperDiscoverSetup::setup();
-
-        if (file_exists($cacheFile)) {
-            $this->success("Helper map cache warmed successfully.");
-        } else {
-            $this->warning("Helper map cache was not created (no helper files found).");
         }
     }
 

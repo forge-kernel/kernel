@@ -23,7 +23,6 @@ final class CacheRebuildTrigger
         '/storage/framework/cache/module_registrations.php',
         '/storage/framework/cache/module_command_map.php',
         '/storage/framework/cache/class_file_map.php',
-        '/storage/framework/cache/helper-map.php',
         '/storage/framework/cache/directory_structure.php',
         '/storage/framework/cache/compiled_hooks.php',
         '/storage/framework/cache/module_assets.cache',

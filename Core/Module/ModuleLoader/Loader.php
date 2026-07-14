@@ -556,6 +556,9 @@ final class Loader
         if (method_exists($moduleInstance, "register")) {
             $moduleInstance->register($this->container);
         }
+        if (method_exists($moduleInstance, "registerIncludes")) {
+            $moduleInstance->registerIncludes();
+        }
 
         new RegisterModuleService($this->container, $reflectionClass)->init();
 
@@ -638,6 +641,11 @@ final class Loader
                         );
                     }
                 }
+            }
+
+            $moduleInstance = $this->container->make($className);
+            if (method_exists($moduleInstance, 'registerIncludes')) {
+                $moduleInstance->registerIncludes();
             }
 
             $hooksInstance = null;
