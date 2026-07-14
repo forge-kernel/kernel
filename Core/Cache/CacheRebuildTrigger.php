@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Forge\Core\Cache;
 
 use Forge\Core\Autoloader;
-use Forge\Core\Bootstrap\OptimizedDirectoryScanner;
 use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Core\Helpers\Logger;
 use Forge\Core\Module\ModuleCache;
@@ -23,7 +22,6 @@ final class CacheRebuildTrigger
         '/storage/framework/cache/module_registrations.php',
         '/storage/framework/cache/module_command_map.php',
         '/storage/framework/cache/class_file_map.php',
-        '/storage/framework/cache/directory_structure.php',
         '/storage/framework/cache/compiled_hooks.php',
         '/storage/framework/cache/module_assets.cache',
         '/storage/framework/cache/controller-map.php',
@@ -129,7 +127,6 @@ final class CacheRebuildTrigger
         FileExistenceCache::clear();
 
         Autoloader::clearClassFileMap();
-        OptimizedDirectoryScanner::clearCache();
 
         /* Also reset module cache state.
          * The ModuleCache disk file will be recreated lazily by ModuleSetup

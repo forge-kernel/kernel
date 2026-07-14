@@ -83,6 +83,28 @@ final class FileExistenceCache
         );
     }
 
+    public static function hasFilesChanged(array $filesWithMtime): bool
+    {
+        if (empty($filesWithMtime)) {
+            return false;
+        }
+
+        self::preload(array_keys($filesWithMtime));
+
+        foreach ($filesWithMtime as $file => $expectedMtime) {
+            if (!self::exists($file)) {
+                return true;
+            }
+
+            $currentMtime = self::getMtime($file);
+            if ($currentMtime !== $expectedMtime) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function preload(array $paths): void
     {
         foreach (array_unique($paths) as $path) {
