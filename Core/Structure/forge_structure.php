@@ -19,7 +19,7 @@ return [
         'languages' => 'app/Common/Languages',
         'support' => 'app/Support',
         'templates' => 'app/Common/Templates',
-        'error_pages' => 'app/error_pages',
+        'error_pages' => 'app/Common/error_pages',
         'includes' => [
             'app/Support/helpers.php',
         ],
@@ -41,6 +41,6 @@ return [
         'middlewares' => ['src/Middlewares', 'src/Http/Middlewares', 'src/Controllers/Middlewares'],
         'languages' => 'src/Languages',
         'templates' => 'src/Common/Templates',
-        'error_pages' => 'src/error_pages',
+        'error_pages' => 'src/Common/error_pages',
     ],
 ];
