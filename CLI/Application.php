@@ -20,8 +20,6 @@ use Forge\CLI\Commands\Generate\GenerateSeederCommand;
 use Forge\CLI\Commands\Generate\GenerateTestCommand;
 use Forge\CLI\Commands\HelpCommand;
 use Forge\CLI\Commands\KeyGenerateCommand;
-use Forge\CLI\Commands\MaintenanceDownCommand;
-use Forge\CLI\Commands\MaintenanceUpCommand;
 use Forge\CLI\Commands\StatsCommand;
 use Forge\CLI\Commands\Storage\StorageLinkCommand;
 use Forge\CLI\Commands\Storage\StorageUnlinkCommand;
@@ -90,8 +88,6 @@ final class Application
             GenerateModuleCommand::class,
             StorageLinkCommand::class,
             StorageUnlinkCommand::class,
-            MaintenanceUpCommand::class,
-            MaintenanceDownCommand::class,
             StatsCommand::class,
             AssetLinkCommand::class,
             AssetUnlinkCommand::class,
