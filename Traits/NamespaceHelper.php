@@ -20,7 +20,7 @@ trait NamespaceHelper
   private function registerModuleAutoloadPath(string $moduleName, string $modulePath): void
   {
     $container = \Forge\Core\DI\Container::getInstance();
-    $modulesNamespace = 'Modules';
+    $modulesNamespace = \Forge\Core\Structure\StructureResolver::resolveModulesNamespace();
     $basePath = $modulePath . '/src';
 
     if ($container->has(\Forge\Core\Structure\StructureResolver::class)) {

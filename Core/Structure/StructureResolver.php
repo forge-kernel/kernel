@@ -153,18 +153,19 @@ final class StructureResolver
         }
 
         $config = require self::INTERNAL_STRUCTURE_PATH;
-        self::$resolvedModulesRoot = $config['modules_root'] ?? 'modules';
+        $root = $config['modules_root'] ?? 'modules';
 
         if (defined('BASE_PATH')) {
             $userPath = BASE_PATH . '/forge_structure.php';
             if (file_exists($userPath)) {
                 $userConfig = require $userPath;
                 if (isset($userConfig['modules_root'])) {
-                    self::$resolvedModulesRoot = $userConfig['modules_root'];
+                    $root = $userConfig['modules_root'];
                 }
             }
         }
 
+        self::$resolvedModulesRoot = is_array($root) ? $root[0] : $root;
         return self::$resolvedModulesRoot;
     }
 
@@ -175,18 +176,19 @@ final class StructureResolver
         }
 
         $config = require self::INTERNAL_STRUCTURE_PATH;
-        self::$resolvedModulesNamespace = $config['modules_namespace'] ?? 'Modules';
+        $ns = $config['modules_namespace'] ?? 'Modules';
 
         if (defined('BASE_PATH')) {
             $userPath = BASE_PATH . '/forge_structure.php';
             if (file_exists($userPath)) {
                 $userConfig = require $userPath;
                 if (isset($userConfig['modules_namespace'])) {
-                    self::$resolvedModulesNamespace = $userConfig['modules_namespace'];
+                    $ns = $userConfig['modules_namespace'];
                 }
             }
         }
 
+        self::$resolvedModulesNamespace = is_array($ns) ? $ns[0] : $ns;
         return self::$resolvedModulesNamespace;
     }
 
@@ -200,7 +202,7 @@ final class StructureResolver
             $root = $user['modules_root'];
         }
 
-        return $root;
+        return is_array($root) ? $root[0] : $root;
     }
 
     public function getModulesNamespace(): string
@@ -214,6 +216,90 @@ final class StructureResolver
         }
 
         return $ns;
+    }
+
+    public function getModuleEntryFiles(): array
+    {
+        $internal = $this->getInternalStructure();
+        $files = $internal['module_entry_files'] ?? ['{name}Module.php', '{name}.php'];
+
+        $user = $this->getUserStructure();
+        if ($user !== null && isset($user['module_entry_files'])) {
+            $files = $user['module_entry_files'];
+        }
+
+        return is_array($files) ? $files : [$files];
+    }
+
+    public function getModuleEntryGlob(): string
+    {
+        $internal = $this->getInternalStructure();
+        $glob = $internal['module_entry_glob'] ?? '*Module.php';
+
+        $user = $this->getUserStructure();
+        if ($user !== null && isset($user['module_entry_glob'])) {
+            $glob = $user['module_entry_glob'];
+        }
+
+        return $glob;
+    }
+
+    public function findModuleEntryFile(string $modulesPath, string $moduleName): ?string
+    {
+        $patterns = $this->getModuleEntryFiles();
+        $srcDir = $modulesPath . '/' . $moduleName . '/src';
+
+        foreach ($patterns as $pattern) {
+            $file = $srcDir . '/' . str_replace('{name}', $moduleName, $pattern);
+            if (file_exists($file)) {
+                return $file;
+            }
+        }
+
+        $glob = $this->getModuleEntryGlob();
+        $files = glob($srcDir . '/' . $glob);
+        if (!empty($files)) {
+            return $files[0];
+        }
+
+        return null;
+    }
+
+    public static function findModuleEntryFileStatic(string $modulesPath, string $moduleName): ?string
+    {
+        $config = require self::INTERNAL_STRUCTURE_PATH;
+        $patterns = $config['module_entry_files'] ?? ['{name}Module.php', '{name}.php'];
+        $glob = $config['module_entry_glob'] ?? '*Module.php';
+
+        if (defined('BASE_PATH')) {
+            $userPath = BASE_PATH . '/forge_structure.php';
+            if (file_exists($userPath)) {
+                $userConfig = require $userPath;
+                if (isset($userConfig['module_entry_files'])) {
+                    $patterns = $userConfig['module_entry_files'];
+                }
+                if (isset($userConfig['module_entry_glob'])) {
+                    $glob = $userConfig['module_entry_glob'];
+                }
+            }
+        }
+
+        $patterns = is_array($patterns) ? $patterns : [$patterns];
+        $srcDir = $modulesPath . '/' . $moduleName . '/src';
+
+        foreach ($patterns as $pattern) {
+            $file = $srcDir . '/' . str_replace('{name}', $moduleName, $pattern);
+            if (file_exists($file)) {
+                return $file;
+            }
+        }
+
+        $files = glob($srcDir . '/' . $glob);
+        if (!empty($files)) {
+            return $files[0];
+        }
+
+        return null;
     }
 
     public function getFullAppStructure(): array

@@ -49,6 +49,8 @@ trait CliGenerator
             ? Container::getInstance()->get(StructureResolver::class)
             : null;
 
+        $modulesRoot = $structureResolver?->getModulesRoot() ?? StructureResolver::resolveModulesRoot();
+
         $map = [
             'controller' => ['controllers', 'Controller.php'],
             'middleware' => ['middlewares', 'Middleware.php'],
@@ -84,7 +86,7 @@ trait CliGenerator
                     $baseDir = BASE_PATH . '/' . $structurePath;
                 } else {
                     $structurePath = $structureResolver->getModulePath($this->module, $structureKey);
-                    $baseDir = BASE_PATH . "/modules/{$this->module}/{$structurePath}";
+                    $baseDir = BASE_PATH . "/{$modulesRoot}/{$this->module}/{$structurePath}";
                 }
             } catch (\InvalidArgumentException $e) {
                 $baseDir = $this->getFallbackPath($type);
@@ -92,35 +94,32 @@ trait CliGenerator
         } elseif ($structureResolver && in_array($structureKey, ['views', 'components'])) {
             try {
                 if ($this->type === 'app') {
-                    $structurePath = $structureResolver->getAppPath($structureKey);
                     if ($type === 'view') {
-                        $baseDir = BASE_PATH . '/' . $structurePath . '/pages';
+                        $structurePath = $structureResolver->getAppPath('pages');
+                        $baseDir = BASE_PATH . '/' . $structurePath;
                     } elseif ($type === 'layout') {
-                        $baseDir = BASE_PATH . '/' . $structurePath . '/layouts';
+                        $structurePath = $structureResolver->getAppPath('layouts');
+                        $baseDir = BASE_PATH . '/' . $structurePath;
                     } elseif (str_starts_with($type, 'component')) {
-                        if ($type === 'component-view-only') {
-                            $baseDir = BASE_PATH . '/' . $structureResolver->getAppPath('components');
-                        } else {
-                            $baseDir = BASE_PATH . '/' . $structurePath . '/components';
-                        }
+                        $structurePath = $structureResolver->getAppPath('components');
+                        $baseDir = BASE_PATH . '/' . $structurePath;
                     } else {
+                        $structurePath = $structureResolver->getAppPath($structureKey);
                         $baseDir = BASE_PATH . '/' . $structurePath;
                     }
                 } else {
-                    $structurePath = $structureResolver->getModulePath($this->module, $structureKey);
                     if ($type === 'view') {
-                        $baseDir = BASE_PATH . "/modules/{$this->module}/{$structurePath}/pages";
+                        $structurePath = $structureResolver->getModulePath($this->module, 'pages');
+                        $baseDir = BASE_PATH . "/{$modulesRoot}/{$this->module}/{$structurePath}";
                     } elseif ($type === 'layout') {
-                        $baseDir = BASE_PATH . "/modules/{$this->module}/{$structurePath}/layouts";
+                        $structurePath = $structureResolver->getModulePath($this->module, 'layouts');
+                        $baseDir = BASE_PATH . "/{$modulesRoot}/{$this->module}/{$structurePath}";
                     } elseif (str_starts_with($type, 'component')) {
-                        if ($type === 'component-view-only') {
-                            $componentsPath = $structureResolver->getModulePath($this->module, 'components');
-                            $baseDir = BASE_PATH . "/modules/{$this->module}/{$componentsPath}";
-                        } else {
-                            $baseDir = BASE_PATH . "/modules/{$this->module}/{$structurePath}/components";
-                        }
+                        $structurePath = $structureResolver->getModulePath($this->module, 'components');
+                        $baseDir = BASE_PATH . "/{$modulesRoot}/{$this->module}/{$structurePath}";
                     } else {
-                        $baseDir = BASE_PATH . "/modules/{$this->module}/{$structurePath}";
+                        $structurePath = $structureResolver->getModulePath($this->module, $structureKey);
+                        $baseDir = BASE_PATH . "/{$modulesRoot}/{$this->module}/{$structurePath}";
                     }
                 }
             } catch (\InvalidArgumentException $e) {
@@ -180,39 +179,45 @@ trait CliGenerator
             }
         } else {
             $fallbackMap = [
-                'controller' => 'Controllers',
-                'middleware' => 'Middlewares',
-                'event' => 'Events',
-                'migration' => 'Database/Migrations',
-                'seeder' => 'Database/Seeders',
-                'model' => 'Models',
-                'view' => 'UI/views',
-                'command' => 'Commands',
-                'service' => 'Services',
+                'controller' => 'controllers',
+                'middleware' => 'middlewares',
+                'event' => 'events',
+                'migration' => 'migrations',
+                'seeder' => 'seeders',
+                'model' => 'models',
+                'view' => 'views',
+                'command' => 'commands',
+                'service' => 'injectable',
                 'enum' => 'Enums',
                 'trait' => 'Traits',
                 'test' => 'tests',
-                'component' => 'UI/views/components',
-                'component-view' => 'UI/views/components',
-                'component-dto' => 'UI/views/components',
-                'component-view-only' => 'UI/views/components',
-                'layout' => 'UI/views/layouts',
-                'dto' => 'Dto',
+                'component' => 'components',
+                'component-view' => 'components',
+                'component-dto' => 'components',
+                'component-view-only' => 'components',
+                'layout' => 'layouts',
+                'dto' => 'dto',
             ];
 
-            $subdir = $fallbackMap[$type] ?? '';
+            $structureKeyForNs = $fallbackMap[$type] ?? '';
 
-            if ($structureResolver && in_array($structureKey, ['controllers', 'middlewares', 'events', 'migrations', 'seeders', 'models', 'commands', 'injectable', 'tests', 'dto'])) {
+            if ($structureResolver && in_array($structureKey, ['controllers', 'middlewares', 'events', 'migrations', 'seeders', 'models', 'commands', 'injectable', 'tests', 'dto', 'views', 'components'])) {
                 try {
                     if ($this->type === 'app') {
-                        $structurePath = $structureResolver->getAppPath($structureKey);
+                        $nsKey = in_array($structureKey, ['views', 'components']) ? ($type === 'view' ? 'views' : ($type === 'layout' ? 'layouts' : 'components')) : $structureKey;
+                        $structurePath = $structureResolver->getAppPath($nsKey);
                         $subdir = preg_replace('#^app/#', '', $structurePath);
                     } else {
-                        $structurePath = $structureResolver->getModulePath($this->module, $structureKey);
+                        $nsKey = in_array($structureKey, ['views', 'components']) ? ($type === 'view' ? 'views' : ($type === 'layout' ? 'layouts' : 'components')) : $structureKey;
+                        $structurePath = $structureResolver->getModulePath($this->module, $nsKey);
                         $subdir = preg_replace('#^src/#', '', $structurePath);
                     }
                 } catch (\InvalidArgumentException $e) {
                 }
+            }
+
+            if (!isset($subdir)) {
+                $subdir = $fallbackMap[$structureKeyForNs] ?? '';
             }
 
             $namespace = $baseNamespace . '\\' . str_replace('/', '\\', $subdir);
@@ -401,24 +406,22 @@ trait CliGenerator
             ? Container::getInstance()->get(StructureResolver::class)
             : null;
 
+        $modulesRoot = $structureResolver?->getModulesRoot() ?? StructureResolver::resolveModulesRoot();
+
         if ($structureResolver) {
             try {
                 if ($this->type === 'app') {
-                    $viewsPath = $structureResolver->getAppPath('views');
-                    $baseDir = BASE_PATH . '/' . $viewsPath . '/pages';
+                    $pagesPath = $structureResolver->getAppPath('pages');
+                    $baseDir = BASE_PATH . '/' . $pagesPath;
                 } else {
-                    $viewsPath = $structureResolver->getModulePath($this->module, 'views');
-                    $baseDir = BASE_PATH . "/modules/{$this->module}/{$viewsPath}/pages";
+                    $pagesPath = $structureResolver->getModulePath($this->module, 'pages');
+                    $baseDir = BASE_PATH . "/{$modulesRoot}/{$this->module}/{$pagesPath}";
                 }
             } catch (\InvalidArgumentException $e) {
-                $baseDir = $this->type === 'app'
-                    ? BASE_PATH . "/app/UI/views/pages"
-                    : BASE_PATH . "/modules/{$this->module}/src/UI/views/pages";
+                $baseDir = $this->getFallbackPath($type);
             }
         } else {
-            $baseDir = $this->type === 'app'
-                ? BASE_PATH . "/app/UI/views/pages"
-                : BASE_PATH . "/modules/{$this->module}/src/UI/views/pages";
+            $baseDir = $this->getFallbackPath('view');
         }
 
         if ($subPath !== '') {
@@ -432,31 +435,45 @@ trait CliGenerator
     private function getFallbackPath(string $type): string
     {
         $fallbackMap = [
-            'controller' => ['Controllers', ''],
-            'middleware' => ['Middlewares', ''],
-            'event' => ['Events', ''],
-            'migration' => ['Database/Migrations', ''],
-            'seeder' => ['Database/Seeders', ''],
-            'model' => ['Models', ''],
-            'view' => ['UI/views/pages', ''],
-            'command' => ['Commands', ''],
-            'service' => ['Services', ''],
+            'controller' => ['controllers', ''],
+            'middleware' => ['middlewares', ''],
+            'event' => ['events', ''],
+            'migration' => ['migrations', ''],
+            'seeder' => ['seeders', ''],
+            'model' => ['models', ''],
+            'view' => ['pages', ''],
+            'command' => ['commands', ''],
+            'service' => ['injectable', ''],
             'enum' => ['Enums', ''],
             'trait' => ['Traits', ''],
             'test' => ['tests', ''],
-            'component' => ['UI/views/components', ''],
-            'component-view' => ['UI/views/components', ''],
-            'component-dto' => ['UI/views/components', ''],
-            'component-view-only' => ['UI/views/components', ''],
-            'layout' => ['UI/views/layouts', ''],
-            'dto' => ['Dto', ''],
+            'component' => ['components', ''],
+            'component-view' => ['components', ''],
+            'component-dto' => ['components', ''],
+            'component-view-only' => ['components', ''],
+            'layout' => ['layouts', ''],
+            'dto' => ['dto', ''],
         ];
 
-        [$subdir] = $fallbackMap[$type] ?? ['', ''];
+        [$structureKey] = $fallbackMap[$type] ?? ['', ''];
 
-        return $this->type === 'app'
-            ? BASE_PATH . "/app/$subdir"
-            : BASE_PATH . "/modules/{$this->module}/src/$subdir";
+        $modulesRoot = StructureResolver::resolveModulesRoot();
+
+        try {
+            $resolver = new StructureResolver();
+            if ($this->type === 'app') {
+                $structurePath = $resolver->getAppPath($structureKey);
+            } else {
+                $structurePath = $resolver->getModulePath($this->module, $structureKey);
+            }
+            return $this->type === 'app'
+                ? BASE_PATH . '/' . $structurePath
+                : BASE_PATH . "/{$modulesRoot}/{$this->module}/{$structurePath}";
+        } catch (\InvalidArgumentException $e) {
+            return $this->type === 'app'
+                ? BASE_PATH . '/app'
+                : BASE_PATH . "/{$modulesRoot}/{$this->module}/src";
+        }
     }
 
     private function viewComponentPath(): string

@@ -15,6 +15,7 @@ use Forge\Core\Services\ManifestService;
 use Forge\Core\Services\RegistryService;
 use Forge\Core\Services\TemplateGenerator;
 use Forge\Core\Services\VersionService;
+use Forge\Core\Structure\StructureResolver;
 use Forge\Traits\StringHelper;
 
 #[Cli(
@@ -91,7 +92,8 @@ final class ModuleVersionCommand extends Command
         }
 
         $moduleNameKebab = self::toKebabCase($this->name);
-        $modulePath = BASE_PATH . "/modules/{$this->name}";
+        $modulesRoot = StructureResolver::resolveModulesRoot();
+        $modulePath = BASE_PATH . "/{$modulesRoot}/{$this->name}";
 
         if (!is_dir($modulePath)) {
             $this->error("Module directory not found: {$modulePath}");
@@ -141,28 +143,13 @@ final class ModuleVersionCommand extends Command
         }
 
         if ($this->gitService->isGitRepository(BASE_PATH)) {
-            $possibleEntryPaths = [
-                "modules/{$this->name}/src/{$this->name}Module.php",
-                "modules/{$this->name}/src/{$this->name}.php",
-            ];
-
-            $entryFilePath = null;
-            foreach ($possibleEntryPaths as $path) {
-                if (file_exists(BASE_PATH . '/' . $path)) {
-                    $entryFilePath = $path;
-                    break;
-                }
-            }
-
-            if (!$entryFilePath) {
-                $dir = BASE_PATH . "/modules/{$this->name}/src";
-                if (is_dir($dir)) {
-                    $files = glob($dir . "/*Module.php");
-                    if (!empty($files)) {
-                        $entryFilePath = str_replace(BASE_PATH . '/', '', $files[0]);
-                    }
-                }
-            }
+            $entryFilePath = StructureResolver::findModuleEntryFileStatic(
+                BASE_PATH . '/' . $modulesRoot,
+                $this->name
+            );
+            $entryFilePath = $entryFilePath !== null
+                ? str_replace(BASE_PATH . '/', '', $entryFilePath)
+                : null;
 
             if ($entryFilePath) {
                 $this->info("Committing module entry file version update to main repository...");

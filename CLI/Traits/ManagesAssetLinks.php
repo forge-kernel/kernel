@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Forge\CLI\Traits;
 
+use Forge\Core\Structure\StructureResolver;
 use Forge\Traits\StringHelper;
 use InvalidArgumentException;
 
@@ -19,7 +20,7 @@ trait ManagesAssetLinks
                 'link' => BASE_PATH . '/public/assets/app',
             ],
             'module' => [
-                'target' => BASE_PATH . "/modules/{$this->toPascalCase($module)}/src/UI/assets",
+                'target' => BASE_PATH . '/' . StructureResolver::resolveModulesRoot() . "/{$this->toPascalCase($module)}/src/UI/assets",
                 'link' => BASE_PATH . "/public/assets/modules/" . $this->toKebabCase($module),
             ],
             default => throw new InvalidArgumentException("Invalid asset type: {$type}")

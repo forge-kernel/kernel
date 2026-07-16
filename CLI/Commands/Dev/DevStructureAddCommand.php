@@ -170,7 +170,7 @@ final class DevStructureAddCommand extends Command
     private function discoverModules(): array
     {
         $modules = [];
-        $modulesPath = BASE_PATH . '/modules';
+        $modulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
 
         if (!is_dir($modulesPath)) {
             return $modules;

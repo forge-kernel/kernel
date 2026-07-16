@@ -44,7 +44,7 @@ final class StructureInfoCommand extends Command
       $userStructureFile = BASE_PATH . '/structure.php';
     }
 
-    $modulesPath = BASE_PATH . '/modules';
+    $modulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
     $modules = [];
     if (is_dir($modulesPath)) {
       $modules = array_filter(

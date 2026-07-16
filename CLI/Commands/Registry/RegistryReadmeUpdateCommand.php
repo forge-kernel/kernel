@@ -10,6 +10,7 @@ use Forge\CLI\Traits\CliGenerator;
 use Forge\Core\Services\ManifestService;
 use Forge\Core\Services\RegistryReadmeService;
 use Forge\Core\Services\RegistryService;
+use Forge\Core\Structure\StructureResolver;
 use Forge\Traits\StringHelper;
 
 #[Cli(
@@ -48,7 +49,7 @@ final class RegistryReadmeUpdateCommand extends Command
         $registryPath = $this->registryService->getRegistryPath('modules');
         $manifestPath = $registryPath . '/modules.json';
         $readmePath = $registryPath . '/README.md';
-        $sourceModulesPath = BASE_PATH . '/modules';
+        $sourceModulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
 
         $this->info('Updating README format...');
         $this->readmeService->updateReadmeFormat($readmePath);

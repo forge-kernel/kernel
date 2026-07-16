@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Forge\Core\Services;
 
+use Forge\Core\Structure\StructureResolver;
+
 final class RegistryReadmeService
 {
     public function __construct(
@@ -236,16 +238,9 @@ final class RegistryReadmeService
 
     private function findModuleEntryFile(string $basePath, string $moduleName): ?string
     {
-        $possiblePaths = [
-            "{$basePath}/{$moduleName}/src/{$moduleName}Module.php",
-            "{$basePath}/{$moduleName}/src/{$moduleName}.php",
-        ];
-
-        // Check common paths first (optimization)
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path) && $this->hasModuleAttribute($path)) {
-                return $path;
-            }
+        $file = StructureResolver::findModuleEntryFileStatic($basePath, $moduleName);
+        if ($file !== null && $this->hasModuleAttribute($file)) {
+            return $file;
         }
 
         $dir = "{$basePath}/{$moduleName}/src";
@@ -253,19 +248,14 @@ final class RegistryReadmeService
             return null;
         }
 
-        // Search all PHP files and check for #[Module] attribute
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($dir, \RecursiveDirectoryIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
-        foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
-                $filePath = $file->getPathname();
-                // Skip files we already checked
-                if (in_array($filePath, $possiblePaths, true)) {
-                    continue;
-                }
+        foreach ($iterator as $fileInfo) {
+            if ($fileInfo->isFile() && $fileInfo->getExtension() === 'php') {
+                $filePath = $fileInfo->getPathname();
                 if ($this->hasModuleAttribute($filePath)) {
                     return $filePath;
                 }

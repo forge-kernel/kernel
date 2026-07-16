@@ -18,6 +18,7 @@ use Forge\Core\Services\RegistryReadmeService;
 use Forge\Core\Services\RegistryService;
 use Forge\Core\Services\TemplateGenerator;
 use Forge\Core\Services\VersionService;
+use Forge\Core\Structure\StructureResolver;
 use Forge\Traits\StringHelper;
 
 #[Cli(
@@ -96,7 +97,8 @@ final class RegistryManageCommand extends Command
         }
 
         $moduleNameKebab = self::toKebabCase($this->name);
-        $modulePath = BASE_PATH . "/modules/{$this->name}";
+        $modulesRoot = StructureResolver::resolveModulesRoot();
+        $modulePath = BASE_PATH . "/{$modulesRoot}/{$this->name}";
 
         if (!is_dir($modulePath)) {
             $this->error("Module directory not found: {$modulePath}");
@@ -133,28 +135,13 @@ final class RegistryManageCommand extends Command
         $this->versionService->updateModuleVersion($this->name, $this->version);
 
         if ($this->gitService->isGitRepository(BASE_PATH)) {
-            $possibleEntryPaths = [
-                "modules/{$this->name}/src/{$this->name}Module.php",
-                "modules/{$this->name}/src/{$this->name}.php",
-            ];
-
-            $entryFilePath = null;
-            foreach ($possibleEntryPaths as $path) {
-                if (file_exists(BASE_PATH . '/' . $path)) {
-                    $entryFilePath = $path;
-                    break;
-                }
-            }
-
-            if (!$entryFilePath) {
-                $dir = BASE_PATH . "/modules/{$this->name}/src";
-                if (is_dir($dir)) {
-                    $files = glob($dir . "/*Module.php");
-                    if (!empty($files)) {
-                        $entryFilePath = str_replace(BASE_PATH . '/', '', $files[0]);
-                    }
-                }
-            }
+            $entryFilePath = StructureResolver::findModuleEntryFileStatic(
+                BASE_PATH . '/' . $modulesRoot,
+                $this->name
+            );
+            $entryFilePath = $entryFilePath !== null
+                ? str_replace(BASE_PATH . '/', '', $entryFilePath)
+                : null;
 
             if ($entryFilePath) {
                 $this->info("Committing module entry file version update to main repository...");
@@ -234,14 +221,14 @@ final class RegistryManageCommand extends Command
         }
 
         $this->info("Updating README module list...");
-        $entryFile = $this->findModuleEntryFile(BASE_PATH . '/modules', $this->name);
+        $entryFile = $this->findModuleEntryFile(BASE_PATH . '/' . $modulesRoot, $this->name);
         if ($entryFile) {
             $metadata = $this->metadataService->extractFromFile($entryFile);
             if ($metadata) {
                 $metadata['version'] = $this->version;
                 $readmePath = $registryPath . '/README.md';
                 if (!$this->readmeService->updateModuleInTable($readmePath, $this->name, $metadata)) {
-                    $modules = $this->readmeService->readAllModulesFromRegistry($registryPath, $manifestPath, BASE_PATH . '/modules');
+                    $modules = $this->readmeService->readAllModulesFromRegistry($registryPath, $manifestPath, BASE_PATH . '/' . $modulesRoot);
                     $this->readmeService->updateModuleListTable($readmePath, $modules);
                 }
             }
@@ -293,25 +280,6 @@ final class RegistryManageCommand extends Command
 
     private function findModuleEntryFile(string $basePath, string $moduleName): ?string
     {
-        $possiblePaths = [
-            "{$basePath}/{$moduleName}/src/{$moduleName}Module.php",
-            "{$basePath}/{$moduleName}/src/{$moduleName}.php",
-        ];
-
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
-                return $path;
-            }
-        }
-
-        $dir = "{$basePath}/{$moduleName}/src";
-        if (is_dir($dir)) {
-            $files = glob($dir . "/*Module.php");
-            if (!empty($files)) {
-                return $files[0];
-            }
-        }
-
-        return null;
+        return StructureResolver::findModuleEntryFileStatic($basePath, $moduleName);
     }
 }

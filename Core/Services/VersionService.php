@@ -21,26 +21,7 @@ final class VersionService
     private function findModuleEntryFile(string $moduleName): ?string
     {
         $modulesDir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
-        $possiblePaths = [
-            "$modulesDir/$moduleName/src/{$moduleName}Module.php",
-            "$modulesDir/$moduleName/src/{$moduleName}.php",
-        ];
-
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
-                return $path;
-            }
-        }
-
-        $dir = "$modulesDir/$moduleName/src";
-        if (is_dir($dir)) {
-            $files = glob("$dir/*Module.php");
-            if (!empty($files)) {
-                return $files[0];
-            }
-        }
-
-        return null;
+        return \Forge\Core\Structure\StructureResolver::findModuleEntryFileStatic($modulesDir, $moduleName);
     }
 
     private function extractVersionFromModuleAttribute(string $filePath): string
@@ -125,28 +106,7 @@ final class VersionService
     public function updateModuleEntryFileVersion(string $moduleName, string $version): void
     {
         $modulesDir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
-        $possiblePaths = [
-            "$modulesDir/$moduleName/src/{$moduleName}Module.php",
-            "$modulesDir/$moduleName/src/{$moduleName}.php",
-        ];
-
-        $entryFilePath = null;
-        foreach ($possiblePaths as $path) {
-            if (file_exists($path)) {
-                $entryFilePath = $path;
-                break;
-            }
-        }
-
-        if (!$entryFilePath) {
-            $dir = "$modulesDir/$moduleName/src";
-            if (is_dir($dir)) {
-                $files = glob("$dir/*Module.php");
-                if (!empty($files)) {
-                    $entryFilePath = $files[0];
-                }
-            }
-        }
+        $entryFilePath = \Forge\Core\Structure\StructureResolver::findModuleEntryFileStatic($modulesDir, $moduleName);
 
         if (!$entryFilePath || !file_exists($entryFilePath)) {
             throw new InvalidArgumentException("Module entry file not found for module: {$moduleName}");

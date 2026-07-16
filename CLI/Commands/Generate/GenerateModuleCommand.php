@@ -76,7 +76,7 @@ final class GenerateModuleCommand extends Command
         );
         $includeHttp = strtolower(trim($includeHttp)) === 'y';
 
-        $moduleDir = BASE_PATH . '/modules/' . $this->name;
+        $moduleDir = BASE_PATH . '/' . $this->structureResolver->getModulesRoot() . '/' . $this->name;
         if (is_dir($moduleDir)) {
             $this->error("Module directory already exists: $moduleDir");
             return 1;

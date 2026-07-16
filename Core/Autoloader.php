@@ -73,12 +73,30 @@ final class Autoloader
 
     private static function buildMap(): void
     {
-        if (is_dir(BASE_PATH . '/app')) {
-            self::addPath('app', BASE_PATH . '/app');
-        }
+        $structure = require BASE_PATH . '/kernel/Core/Structure/forge_structure.php';
+
         self::addPath('forge', BASE_PATH . '/kernel');
-        if (is_dir(BASE_PATH . '/modules')) {
-            self::addPath('modules', BASE_PATH . '/modules');
+
+        $appRoot = $structure['app_root'] ?? 'app';
+        if (is_array($appRoot)) {
+            foreach ($appRoot as $root) {
+                if (is_dir(BASE_PATH . '/' . $root)) {
+                    self::addPath('app', BASE_PATH . '/' . $root);
+                }
+            }
+        } elseif (is_dir(BASE_PATH . '/' . $appRoot)) {
+            self::addPath('app', BASE_PATH . '/' . $appRoot);
+        }
+
+        $modulesRoot = $structure['modules_root'] ?? 'modules';
+        if (is_array($modulesRoot)) {
+            foreach ($modulesRoot as $root) {
+                if (is_dir(BASE_PATH . '/' . $root)) {
+                    self::addPath('modules', BASE_PATH . '/' . $root);
+                }
+            }
+        } elseif (is_dir(BASE_PATH . '/' . $modulesRoot)) {
+            self::addPath('modules', BASE_PATH . '/' . $modulesRoot);
         }
     }
 
@@ -89,7 +107,13 @@ final class Autoloader
         if ($dir === false || !is_dir($dir)) {
             throw new \InvalidArgumentException("Directory $path does not exist");
         }
-        self::$map[$ns] = $dir;
+        if (!isset(self::$map[$ns])) {
+            self::$map[$ns] = $dir;
+        } elseif (is_string(self::$map[$ns])) {
+            self::$map[$ns] = [self::$map[$ns], $dir];
+        } else {
+            self::$map[$ns][] = $dir;
+        }
     }
 
     public static function getPaths(): array
@@ -145,35 +169,38 @@ final class Autoloader
             }
         }
 
-        foreach (self::$map as $prefix => $dir) {
+        foreach (self::$map as $prefix => $dirs) {
             if (!str_starts_with($lower, $prefix)) {
                 continue;
             }
 
-            // Optimize string operations
             $relative = substr($class, strlen($prefix));
             $relative = str_replace('\\', \DIRECTORY_SEPARATOR, $relative) . '.php';
-            $file = $dir . \DIRECTORY_SEPARATOR . ltrim($relative, \DIRECTORY_SEPARATOR);
+            $searchDirs = is_array($dirs) ? $dirs : [$dirs];
 
-            if (isset(self::$cache[$file])) {
-                /** @var SplFileInfo $info */
-                $info = self::$cache[$file];
-                if ($info->isFile()) {
-                    $realPath = $info->getRealPath();
-                    self::cacheClassMapping($class, $realPath);
-                    self::requireFile($realPath, $class);
-                    return;
+            foreach ($searchDirs as $dir) {
+                $file = $dir . \DIRECTORY_SEPARATOR . ltrim($relative, \DIRECTORY_SEPARATOR);
+
+                if (isset(self::$cache[$file])) {
+                    /** @var SplFileInfo $info */
+                    $info = self::$cache[$file];
+                    if ($info->isFile()) {
+                        $realPath = $info->getRealPath();
+                        self::cacheClassMapping($class, $realPath);
+                        self::requireFile($realPath, $class);
+                        return;
+                    }
+                    unset(self::$cache[$file]);
                 }
-                unset(self::$cache[$file]);
-            }
 
-            if (self::fileExists($file)) {
-                $realPath = realpath($file);
-                if ($realPath !== false) {
-                    self::cache($file);
-                    self::cacheClassMapping($class, $realPath);
-                    self::requireFile($realPath, $class);
-                    return;
+                if (self::fileExists($file)) {
+                    $realPath = realpath($file);
+                    if ($realPath !== false) {
+                        self::cache($file);
+                        self::cacheClassMapping($class, $realPath);
+                        self::requireFile($realPath, $class);
+                        return;
+                    }
                 }
             }
         }
@@ -337,10 +364,13 @@ final class Autoloader
     private static function collectClassMapDirsMtimes(): array
     {
         $mtimes = [];
-        foreach (self::$map as $prefix => $dir) {
-            $mtime = @filemtime($dir);
-            if ($mtime !== false) {
-                $mtimes[$dir] = $mtime;
+        foreach (self::$map as $prefix => $dirs) {
+            $searchDirs = is_array($dirs) ? $dirs : [$dirs];
+            foreach ($searchDirs as $dir) {
+                $mtime = @filemtime($dir);
+                if ($mtime !== false) {
+                    $mtimes[$dir] = $mtime;
+                }
             }
         }
         return $mtimes;
