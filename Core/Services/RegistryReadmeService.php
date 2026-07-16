@@ -137,7 +137,7 @@ final class RegistryReadmeService
         return file_put_contents($readmePath, $updatedContent) !== false;
     }
 
-    public function readAllModulesFromRegistry(string $registryPath, string $manifestPath, string $sourceModulesPath): array
+    public function readAllModulesFromRegistry(string $registryPath, string $manifestPath): array
     {
         $manifest = $this->manifestService->readModulesManifest($manifestPath);
         if (!$manifest || !is_array($manifest)) {
@@ -149,7 +149,7 @@ final class RegistryReadmeService
             $moduleNamePascal = $this->kebabToPascal($moduleNameKebab);
             $latestVersion = $moduleData['latest'] ?? null;
 
-            $entryFile = $this->findModuleEntryFile($sourceModulesPath, $moduleNamePascal);
+            $entryFile = $this->findModuleEntryFile($moduleNamePascal);
             if (!$entryFile) {
                 continue;
             }
@@ -236,8 +236,14 @@ final class RegistryReadmeService
         return file_put_contents($readmePath, $content) !== false;
     }
 
-    private function findModuleEntryFile(string $basePath, string $moduleName): ?string
+    private function findModuleEntryFile(string $moduleName): ?string
     {
+        $root = StructureResolver::findModuleRoot(BASE_PATH, $moduleName);
+        if ($root === null) {
+            return null;
+        }
+
+        $basePath = BASE_PATH . '/' . $root;
         $file = StructureResolver::findModuleEntryFileStatic($basePath, $moduleName);
         if ($file !== null && $this->hasModuleAttribute($file)) {
             return $file;

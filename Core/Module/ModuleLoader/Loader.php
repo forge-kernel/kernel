@@ -57,31 +57,41 @@ final class Loader
         return $this->modulesRootPath;
     }
 
+    private function getModulesRoots(): array
+    {
+        return array_map(
+            fn(string $root) => BASE_PATH . '/' . $root,
+            StructureResolver::resolveModulesRoots()
+        );
+    }
+
     /**
-     * Discover module directories by scanning the modules/ folder.
+     * Discover module directories by scanning all module root folders.
      * Convention: each subdirectory with src/{Name}Module.php is a module.
      *
      * @return array<string, string> [name => path]
      */
     private function discoverModuleDirectories(): array
     {
-        $modulesDir = $this->getModulesRoot();
-        if (!is_dir($modulesDir)) {
-            return [];
-        }
-
         $directories = [];
-        foreach (scandir($modulesDir) as $entry) {
-            if ($entry === '.' || $entry === '..') {
+
+        foreach ($this->getModulesRoots() as $modulesDir) {
+            if (!is_dir($modulesDir)) {
                 continue;
             }
-            $path = "$modulesDir/$entry";
-            if (!is_dir($path)) {
-                continue;
-            }
-            $moduleFiles = glob("$path/src/*Module.php");
-            if (!empty($moduleFiles)) {
-                $directories[$entry] = $path;
+
+            foreach (scandir($modulesDir) as $entry) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+                $path = "$modulesDir/$entry";
+                if (!is_dir($path)) {
+                    continue;
+                }
+                $moduleFiles = glob("$path/src/*Module.php");
+                if (!empty($moduleFiles)) {
+                    $directories[$entry] = $path;
+                }
             }
         }
 
@@ -90,12 +100,15 @@ final class Loader
 
     private function resolveModuleClassName(string $moduleName): ?string
     {
-        $modulesNamespace = StructureResolver::resolveModulesNamespace();
+        $path = $this->moduleDirectories[$moduleName] ?? null;
+        $modulesNamespace = $this->resolveModulesNamespaceForModulePath($path);
         $candidate = $modulesNamespace . '\\' . $moduleName . '\\' . $moduleName . 'Module';
         if (class_exists($candidate, false)) {
             return $candidate;
         }
-        $path = $this->moduleDirectories[$moduleName] ?? ($this->getModulesRoot() . '/' . $moduleName);
+        if ($path === null) {
+            $path = $this->getModulesRoot() . '/' . $moduleName;
+        }
         $moduleFiles = glob($path . '/src/*Module.php');
         if (!empty($moduleFiles)) {
             foreach ($moduleFiles as $file) {
@@ -132,6 +145,7 @@ final class Loader
                     'class' => $className,
                     'order' => $attr->order ?? PHP_INT_MAX,
                     'type' => $attr->type ?? 'module',
+                    'category' => $attr->category ?? 'module',
                     'core' => $attr->core ?? false,
                 ];
             } catch (\ReflectionException $e) {
@@ -194,21 +208,23 @@ final class Loader
         if ($cacheMtime === false) {
             return false;
         }
-        $modulesPath = $this->getModulesRoot();
-        if (!is_dir($modulesPath)) {
-            return false;
-        }
-        foreach (scandir($modulesPath) as $entry) {
-            if ($entry === '.' || $entry === '..') {
+
+        foreach ($this->getModulesRoots() as $modulesPath) {
+            if (!is_dir($modulesPath)) {
                 continue;
             }
-            $dir = $modulesPath . '/' . $entry;
-            if (!is_dir($dir)) {
-                continue;
-            }
-            $dirMtime = @filemtime($dir);
-            if ($dirMtime !== false && $dirMtime > $cacheMtime) {
-                return false;
+            foreach (scandir($modulesPath) as $entry) {
+                if ($entry === '.' || $entry === '..') {
+                    continue;
+                }
+                $dir = $modulesPath . '/' . $entry;
+                if (!is_dir($dir)) {
+                    continue;
+                }
+                $dirMtime = @filemtime($dir);
+                if ($dirMtime !== false && $dirMtime > $cacheMtime) {
+                    return false;
+                }
             }
         }
         return true;
@@ -277,7 +293,6 @@ final class Loader
                                 }
                             } catch (\Throwable $e) {
                                 Logger::log("Error calling early hook {$hookName->value} on {$className}::{$methodName}", $e->getMessage());
-                                return null;
                             }
                         };
 
@@ -293,6 +308,22 @@ final class Loader
         } catch (\Throwable $e) {
             Logger::log("Error discovering early hooks for {$className}", $e->getMessage());
         }
+    }
+
+    private function resolveModulesNamespaceForModulePath(?string $modulePath): string
+    {
+        if ($modulePath === null) {
+            return StructureResolver::resolveModulesNamespace();
+        }
+        $roots = StructureResolver::resolveModulesRoots();
+        $namespaces = StructureResolver::resolveModulesNamespaces();
+        foreach ($roots as $i => $root) {
+            $absoluteRoot = BASE_PATH . '/' . $root;
+            if (str_starts_with($modulePath, $absoluteRoot)) {
+                return $namespaces[$i] ?? $namespaces[0];
+            }
+        }
+        return $namespaces[0];
     }
 
     /**
@@ -400,6 +431,7 @@ final class Loader
                 'order' => $meta['order'],
                 'path' => $path,
                 'type' => $meta['type'],
+                'category' => $meta['category'] ?? 'module',
             ];
         }
         return $registry;
@@ -548,12 +580,14 @@ final class Loader
         }
 
         foreach ($modules as $name => $data) {
-            $this->moduleDirectories[$name] = $data['path'];
-            $this->registerModuleAutoloadPath($name, $data['path']);
+            $absolutePath = self::resolveCachePath($data['path']);
+            $this->moduleDirectories[$name] = $absolutePath;
+            $this->registerModuleAutoloadPath($name, $absolutePath);
             $this->moduleMetas[$name] = [
                 'class' => $data['class'],
                 'order' => $data['order'] ?? PHP_INT_MAX,
                 'type' => $data['type'] ?? 'module',
+                'category' => $data['category'] ?? 'module',
                 'core' => $data['core'] ?? false,
             ];
         }
@@ -754,5 +788,13 @@ final class Loader
         $this->earlyHooksRegistered = [];
         $this->earlyHooksDiscovered = false;
         $this->modulesRootPath = null;
+    }
+
+    private static function resolveCachePath(string $path): string
+    {
+        if (!str_starts_with($path, '/')) {
+            return BASE_PATH . '/' . $path;
+        }
+        return $path;
     }
 }

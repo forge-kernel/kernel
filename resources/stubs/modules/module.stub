@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Modules\{{ moduleName }};
+namespace {{ moduleNamespace }}\{{ moduleName }};
 
 use Forge\Core\DI\Container;
 use Forge\Core\Module\Attributes\Compatibility;
@@ -12,14 +12,14 @@ use Forge\Core\Module\Attributes\PostInstall;
 use Forge\Core\Module\Attributes\PostUninstall;
 use Forge\Core\Module\Attributes\Provides;
 use Forge\Core\Module\Attributes\Repository;
-use Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
-use Modules\{{ moduleName }}\Services\{{ serviceName }};
+use {{ moduleNamespace }}\{{ moduleName }}\Contracts\{{ interfaceName }};
+use {{ moduleNamespace }}\{{ moduleName }}\Services\{{ serviceName }};
 use Forge\Core\Module\Attributes\LifecycleHook;
 use Forge\Core\Module\LifecycleHookName;
 use Forge\CLI\Traits\OutputHelper;
 {{ structureAttribute }}
 
-#[Module(name: '{{ moduleName }}', version: '{{ moduleVersion }}', description: '{{ moduleDescription }}', order: 99, author: 'Your Name', license: '', tags: [])]
+#[Module(name: '{{ moduleName }}', version: '{{ moduleVersion }}', description: '{{ moduleDescription }}', order: 99, author: 'Your Name', license: '', category: '{{ category }}', tags: [])]
 #[Compatibility(framework: '>={{ frameworkVersion }}', php: '>=8.3')]
 #[Provides(interface: {{ interfaceName }}::class, version: '{{ moduleVersion }}')]
 #[Repository(type: 'git', url: 'https://github.com/your-org/your-repo')]

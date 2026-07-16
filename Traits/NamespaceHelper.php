@@ -26,7 +26,7 @@ trait NamespaceHelper
     if ($container->has(\Forge\Core\Structure\StructureResolver::class)) {
       try {
         $structureResolver = $container->get(\Forge\Core\Structure\StructureResolver::class);
-        $modulesNamespace = $structureResolver->getModulesNamespace();
+        $modulesNamespace = $this->resolveModulesNamespaceForPath($structureResolver, $modulePath);
         $controllersPath = $structureResolver->getModulePath($moduleName, 'controllers');
         if (!str_starts_with($controllersPath, 'src/')) {
           $basePath = $modulePath;
@@ -37,6 +37,21 @@ trait NamespaceHelper
 
     $moduleNamespacePrefix = $modulesNamespace . '\\' . str_replace('-', '\\', $moduleName);
     Autoloader::addPath($moduleNamespacePrefix . '\\', $basePath);
+  }
+
+  private function resolveModulesNamespaceForPath(
+    \Forge\Core\Structure\StructureResolver $resolver,
+    string $modulePath,
+  ): string {
+    $roots = $resolver->getModulesRoots();
+    $namespaces = $resolver->getModulesNamespaces();
+    foreach ($roots as $i => $root) {
+      $absoluteRoot = BASE_PATH . '/' . $root;
+      if (str_starts_with($modulePath, $absoluteRoot)) {
+        return $namespaces[$i] ?? $namespaces[0];
+      }
+    }
+    return $namespaces[0];
   }
 
   private function getClassNameFromFile(string $path): ?string

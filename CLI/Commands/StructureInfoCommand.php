@@ -44,13 +44,17 @@ final class StructureInfoCommand extends Command
       $userStructureFile = BASE_PATH . '/structure.php';
     }
 
-    $modulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
     $modules = [];
-    if (is_dir($modulesPath)) {
-      $modules = array_filter(
-        scandir($modulesPath),
-        fn($item) => is_dir("$modulesPath/$item") && !in_array($item, ['.', '..'])
-      );
+    foreach (StructureResolver::resolveModulesRoots() as $root) {
+      $modulesPath = BASE_PATH . '/' . $root;
+      if (!is_dir($modulesPath)) {
+        continue;
+      }
+      foreach (scandir($modulesPath) as $item) {
+        if (is_dir("$modulesPath/$item") && !in_array($item, ['.', '..'])) {
+          $modules[$item] = $modulesPath . '/' . $item;
+        }
+      }
     }
 
     $options = ['View App Structure'];

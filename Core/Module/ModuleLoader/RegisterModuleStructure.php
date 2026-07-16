@@ -36,8 +36,12 @@ final readonly class RegisterModuleStructure
   private function extractModuleName(): ?string
   {
     $className = $this->reflectionClass->getName();
-    if (preg_match('/Modules\\\\([^\\\\]+)\\\\/', $className, $matches)) {
-      return $matches[1];
+    $namespaces = StructureResolver::resolveModulesNamespaces();
+    foreach ($namespaces as $ns) {
+      $pattern = '/' . preg_quote($ns, '/') . '\\\\([^\\\\]+)\\\\/';
+      if (preg_match($pattern, $className, $matches)) {
+        return $matches[1];
+      }
     }
     return null;
   }

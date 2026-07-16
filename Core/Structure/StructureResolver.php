@@ -28,7 +28,17 @@ final class StructureResolver
             throw new \InvalidArgumentException("Unknown structure type: {$type}");
         }
 
-        return self::normalizeToArray($this->appStructure[$type]);
+        $relativePaths = self::normalizeToArray($this->appStructure[$type]);
+        $roots = $this->getAppRoots();
+
+        $fullPaths = [];
+        foreach ($roots as $root) {
+            foreach ($relativePaths as $relPath) {
+                $fullPaths[] = $root . '/' . $relPath;
+            }
+        }
+
+        return $fullPaths;
     }
 
     public function getAppPath(string $type): string
@@ -145,11 +155,20 @@ final class StructureResolver
 
     private static ?string $resolvedModulesRoot = null;
     private static ?string $resolvedModulesNamespace = null;
+    private static ?array $resolvedModulesRoots = null;
+    private static ?array $resolvedModulesNamespaces = null;
+    private static ?array $resolvedAppRoots = null;
+    private static ?array $resolvedAppNamespaces = null;
 
     public static function resolveModulesRoot(): string
     {
-        if (self::$resolvedModulesRoot !== null) {
-            return self::$resolvedModulesRoot;
+        return self::resolveModulesRoots()[0];
+    }
+
+    public static function resolveModulesRoots(): array
+    {
+        if (self::$resolvedModulesRoots !== null) {
+            return self::$resolvedModulesRoots;
         }
 
         $config = require self::INTERNAL_STRUCTURE_PATH;
@@ -165,14 +184,20 @@ final class StructureResolver
             }
         }
 
-        self::$resolvedModulesRoot = is_array($root) ? $root[0] : $root;
-        return self::$resolvedModulesRoot;
+        self::$resolvedModulesRoots = self::normalizeToArray($root);
+        self::$resolvedModulesRoot = self::$resolvedModulesRoots[0];
+        return self::$resolvedModulesRoots;
     }
 
     public static function resolveModulesNamespace(): string
     {
-        if (self::$resolvedModulesNamespace !== null) {
-            return self::$resolvedModulesNamespace;
+        return self::resolveModulesNamespaces()[0];
+    }
+
+    public static function resolveModulesNamespaces(): array
+    {
+        if (self::$resolvedModulesNamespaces !== null) {
+            return self::$resolvedModulesNamespaces;
         }
 
         $config = require self::INTERNAL_STRUCTURE_PATH;
@@ -188,11 +213,90 @@ final class StructureResolver
             }
         }
 
-        self::$resolvedModulesNamespace = is_array($ns) ? $ns[0] : $ns;
-        return self::$resolvedModulesNamespace;
+        self::$resolvedModulesNamespaces = self::normalizeToArray($ns);
+        self::$resolvedModulesNamespace = self::$resolvedModulesNamespaces[0];
+        return self::$resolvedModulesNamespaces;
+    }
+
+    public static function resolveAppRoots(): array
+    {
+        if (self::$resolvedAppRoots !== null) {
+            return self::$resolvedAppRoots;
+        }
+
+        $config = require self::INTERNAL_STRUCTURE_PATH;
+        $root = $config['app_root'] ?? 'app';
+
+        if (defined('BASE_PATH')) {
+            $userPath = BASE_PATH . '/forge_structure.php';
+            if (file_exists($userPath)) {
+                $userConfig = require $userPath;
+                if (isset($userConfig['app_root'])) {
+                    $root = $userConfig['app_root'];
+                }
+            }
+        }
+
+        self::$resolvedAppRoots = self::normalizeToArray($root);
+        return self::$resolvedAppRoots;
+    }
+
+    public static function resolveAppNamespaces(): array
+    {
+        if (self::$resolvedAppNamespaces !== null) {
+            return self::$resolvedAppNamespaces;
+        }
+
+        $config = require self::INTERNAL_STRUCTURE_PATH;
+        $ns = $config['app_namespace'] ?? 'App';
+
+        if (defined('BASE_PATH')) {
+            $userPath = BASE_PATH . '/forge_structure.php';
+            if (file_exists($userPath)) {
+                $userConfig = require $userPath;
+                if (isset($userConfig['app_namespace'])) {
+                    $ns = $userConfig['app_namespace'];
+                }
+            }
+        }
+
+        self::$resolvedAppNamespaces = self::normalizeToArray($ns);
+        return self::$resolvedAppNamespaces;
+    }
+
+    public static function resolveModulesNamespaceForRoot(string $root): string
+    {
+        $roots = self::resolveModulesRoots();
+        $namespaces = self::resolveModulesNamespaces();
+
+        $index = array_search($root, $roots);
+        if ($index !== false && isset($namespaces[$index])) {
+            return $namespaces[$index];
+        }
+
+        return $namespaces[0];
+    }
+
+    public static function findModuleRoot(string $modulesPath, string $moduleName): ?string
+    {
+        $roots = self::resolveModulesRoots();
+
+        foreach ($roots as $root) {
+            $dir = $modulesPath . '/' . $root . '/' . $moduleName;
+            if (is_dir($dir)) {
+                return $root;
+            }
+        }
+
+        return null;
     }
 
     public function getModulesRoot(): string
+    {
+        return $this->getModulesRoots()[0];
+    }
+
+    public function getModulesRoots(): array
     {
         $internal = $this->getInternalStructure();
         $root = $internal['modules_root'] ?? 'modules';
@@ -202,10 +306,15 @@ final class StructureResolver
             $root = $user['modules_root'];
         }
 
-        return is_array($root) ? $root[0] : $root;
+        return self::normalizeToArray($root);
     }
 
     public function getModulesNamespace(): string
+    {
+        return $this->getModulesNamespaces()[0];
+    }
+
+    public function getModulesNamespaces(): array
     {
         $internal = $this->getInternalStructure();
         $ns = $internal['modules_namespace'] ?? 'Modules';
@@ -215,7 +324,56 @@ final class StructureResolver
             $ns = $user['modules_namespace'];
         }
 
-        return $ns;
+        return self::normalizeToArray($ns);
+    }
+
+    public function getAppRoots(): array
+    {
+        $internal = $this->getInternalStructure();
+        $root = $internal['app_root'] ?? 'app';
+
+        $user = $this->getUserStructure();
+        if ($user !== null && isset($user['app_root'])) {
+            $root = $user['app_root'];
+        }
+
+        return self::normalizeToArray($root);
+    }
+
+    public function getAppNamespaces(): array
+    {
+        $internal = $this->getInternalStructure();
+        $ns = $internal['app_namespace'] ?? 'App';
+
+        $user = $this->getUserStructure();
+        if ($user !== null && isset($user['app_namespace'])) {
+            $ns = $user['app_namespace'];
+        }
+
+        return self::normalizeToArray($ns);
+    }
+
+    public function getModulesNamespaceForRoot(string $root): string
+    {
+        $roots = $this->getModulesRoots();
+        $namespaces = $this->getModulesNamespaces();
+
+        $index = array_search($root, $roots);
+        if ($index !== false && isset($namespaces[$index])) {
+            return $namespaces[$index];
+        }
+
+        return $namespaces[0];
+    }
+
+    public function findModuleRootForModule(string $modulesPath, string $moduleName): ?string
+    {
+        foreach ($this->getModulesRoots() as $root) {
+            if (is_dir($modulesPath . '/' . $root . '/' . $moduleName)) {
+                return $root;
+            }
+        }
+        return null;
     }
 
     public function getModuleEntryFiles(): array
@@ -321,17 +479,34 @@ final class StructureResolver
     public function getAppNamespace(string $type, ?string $specificPath = null): string
     {
         $path = $specificPath ?? $this->getAppPath($type);
+        $roots = $this->getAppRoots();
+        $namespaces = $this->getAppNamespaces();
 
-        if (str_starts_with($path, 'app/')) {
-            $path = substr($path, 4);
-        } elseif (str_starts_with($path, 'src/')) {
-            $path = substr($path, 4);
+        foreach ($roots as $index => $root) {
+            if (str_starts_with($path, $root . '/')) {
+                $relativePath = substr($path, strlen($root) + 1);
+                $ns = $namespaces[$index] ?? $namespaces[0];
+                return $ns . '\\' . $this->pathToNamespace($relativePath);
+            }
         }
 
-        return 'App\\' . $this->pathToNamespace($path);
+        return $namespaces[0] . '\\' . $this->pathToNamespace($path);
     }
 
-    public function getModuleNamespace(string $module, string $type, ?string $specificPath = null): string
+    public function getAppNamespaceForRoot(string $root): string
+    {
+        $roots = $this->getAppRoots();
+        $namespaces = $this->getAppNamespaces();
+
+        $index = array_search($root, $roots);
+        if ($index !== false && isset($namespaces[$index])) {
+            return $namespaces[$index];
+        }
+
+        return $namespaces[0];
+    }
+
+    public function getModuleNamespace(string $module, string $type, ?string $specificPath = null, ?string $root = null): string
     {
         $path = $specificPath ?? $this->getModulePath($module, $type);
 
@@ -339,7 +514,11 @@ final class StructureResolver
             $path = substr($path, 4);
         }
 
-        return $this->getModulesNamespace() . '\\' . $module . '\\' . $this->pathToNamespace($path);
+        $namespace = $root !== null
+            ? $this->getModulesNamespaceForRoot($root)
+            : $this->getModulesNamespace();
+
+        return $namespace . '\\' . $module . '\\' . $this->pathToNamespace($path);
     }
 
     private static function normalizeToArray(string|array $value): array

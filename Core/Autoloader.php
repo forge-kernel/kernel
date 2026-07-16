@@ -26,6 +26,12 @@ final class Autoloader
     /** @var array<string, bool>  tracks files currently being loaded to prevent concurrent requires */
     private static array $loadingFiles = [];
 
+    /** @var array<string>  lowercase app namespace prefixes for class caching */
+    private static array $appNamespacePrefixes = [];
+
+    /** @var array<string>  lowercase module namespace prefixes for class caching */
+    private static array $moduleNamespacePrefixes = [];
+
     /** @var array<string,string>  persistent class → file mapping cache */
     private static array $classFileMap = [];
 
@@ -75,29 +81,50 @@ final class Autoloader
     {
         $structure = require BASE_PATH . '/kernel/Core/Structure/forge_structure.php';
 
+        if (defined('BASE_PATH')) {
+            $userPath = BASE_PATH . '/forge_structure.php';
+            if (file_exists($userPath)) {
+                $userConfig = require $userPath;
+                if (is_array($userConfig)) {
+                    $structure = array_merge($structure, $userConfig);
+                }
+            }
+        }
+
         self::addPath('forge', BASE_PATH . '/kernel');
 
         $appRoot = $structure['app_root'] ?? 'app';
-        if (is_array($appRoot)) {
-            foreach ($appRoot as $root) {
-                if (is_dir(BASE_PATH . '/' . $root)) {
-                    self::addPath('app', BASE_PATH . '/' . $root);
-                }
+        $appNs = $structure['app_namespace'] ?? 'App';
+        $appRoots = self::normalizeTotoArray($appRoot);
+        $appNamespaces = self::normalizeTotoArray($appNs);
+
+        self::$appNamespacePrefixes = array_map('strtolower', $appNamespaces);
+
+        foreach ($appRoots as $i => $root) {
+            if (is_dir(BASE_PATH . '/' . $root)) {
+                $nsPrefix = strtolower($appNamespaces[$i] ?? $appNamespaces[0]);
+                self::addPath($nsPrefix, BASE_PATH . '/' . $root);
             }
-        } elseif (is_dir(BASE_PATH . '/' . $appRoot)) {
-            self::addPath('app', BASE_PATH . '/' . $appRoot);
         }
 
         $modulesRoot = $structure['modules_root'] ?? 'modules';
-        if (is_array($modulesRoot)) {
-            foreach ($modulesRoot as $root) {
-                if (is_dir(BASE_PATH . '/' . $root)) {
-                    self::addPath('modules', BASE_PATH . '/' . $root);
-                }
+        $modulesNs = $structure['modules_namespace'] ?? 'Modules';
+        $modulesRoots = self::normalizeTotoArray($modulesRoot);
+        $modulesNamespaces = self::normalizeTotoArray($modulesNs);
+
+        self::$moduleNamespacePrefixes = array_map('strtolower', $modulesNamespaces);
+
+        foreach ($modulesRoots as $i => $root) {
+            if (is_dir(BASE_PATH . '/' . $root)) {
+                $nsPrefix = strtolower($modulesNamespaces[$i] ?? $modulesNamespaces[0]);
+                self::addPath($nsPrefix, BASE_PATH . '/' . $root);
             }
-        } elseif (is_dir(BASE_PATH . '/' . $modulesRoot)) {
-            self::addPath('modules', BASE_PATH . '/' . $modulesRoot);
         }
+    }
+
+    private static function normalizeTotoArray(string|array $value): array
+    {
+        return is_array($value) ? array_values($value) : [$value];
     }
 
     public static function addPath(string $namespace, string $path): void
@@ -267,27 +294,55 @@ final class Autoloader
      */
     private static function shouldCacheClass(string $class): bool
     {
+        $lower = strtolower($class);
+
         if (
-            str_starts_with($class, 'Forge\\Core\\') ||
-            str_starts_with($class, 'Forge\\CLI\\') ||
-            str_starts_with($class, 'Forge\\Traits\\')
+            str_starts_with($lower, 'forge\\core\\') ||
+            str_starts_with($lower, 'forge\\cli\\') ||
+            str_starts_with($lower, 'forge\\traits\\')
         ) {
             return false;
         }
 
         // Don't cache test classes
-        if (str_ends_with($class, 'Test')) {
+        if (str_ends_with($lower, 'test')) {
             return false;
         }
 
         // Only cache application classes and frequently loaded classes
-        return str_starts_with($class, 'App\\') || str_starts_with($class, 'Modules\\');
+        foreach (self::$appNamespacePrefixes as $nsPrefix) {
+            if (str_starts_with($lower, $nsPrefix . '\\')) {
+                return true;
+            }
+        }
+        foreach (self::$moduleNamespacePrefixes as $nsPrefix) {
+            if (str_starts_with($lower, $nsPrefix . '\\')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static function cleanupClassMapping(string $class): void
     {
         unset(self::$classFileMap[$class]);
         unset(self::$lowerClassMap[strtolower($class)]);
+    }
+
+    private static function makePathRelative(string $absolutePath): string
+    {
+        if (defined('BASE_PATH') && str_starts_with($absolutePath, BASE_PATH . '/')) {
+            return substr($absolutePath, strlen(BASE_PATH) + 1);
+        }
+        return $absolutePath;
+    }
+
+    private static function makePathAbsolute(string $path): string
+    {
+        if (defined('BASE_PATH') && !str_starts_with($path, '/')) {
+            return BASE_PATH . '/' . $path;
+        }
+        return $path;
     }
 
     private static function fileExists(string $file): bool
@@ -328,7 +383,7 @@ final class Autoloader
         try {
             $data = include $cacheFile;
             if (is_array($data) && self::isClassMapCacheValid($data)) {
-                self::$classFileMap = $data['classFileMap'] ?? [];
+                self::$classFileMap = array_map([self::class, 'makePathAbsolute'], $data['classFileMap'] ?? []);
                 self::$lowerClassMap = $data['lowerClassMap'] ?? [];
             }
             // If invalid, leave maps empty so next autoload rebuilds them
@@ -347,10 +402,11 @@ final class Autoloader
             return false;
         }
         foreach ($dirMtimes as $dir => $cachedMtime) {
-            if (!is_dir($dir)) {
+            $absoluteDir = self::makePathAbsolute($dir);
+            if (!is_dir($absoluteDir)) {
                 return false;
             }
-            $current = @filemtime($dir);
+            $current = @filemtime($absoluteDir);
             if ($current === false || $current > $cachedMtime) {
                 return false;
             }
@@ -391,10 +447,15 @@ final class Autoloader
             mkdir($directory, 0755, true);
         }
 
+        $relativeClassFileMap = array_map([self::class, 'makePathRelative'], self::$classFileMap);
+
         $data = [
-            'classFileMap' => self::$classFileMap,
+            'classFileMap' => $relativeClassFileMap,
             'lowerClassMap' => self::$lowerClassMap,
-            'dir_mtimes' => self::collectClassMapDirsMtimes(),
+            'dir_mtimes' => array_combine(
+                array_map([self::class, 'makePathRelative'], array_keys(self::collectClassMapDirsMtimes())),
+                array_values(self::collectClassMapDirsMtimes())
+            ),
         ];
 
         $content = '<?php return ' . var_export($data, true) . ';';

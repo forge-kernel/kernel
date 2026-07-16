@@ -199,22 +199,24 @@ final class ModuleSetup
             return true;
         }
 
-        $modulesPath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
-        if (!is_dir($modulesPath)) {
-            return false;
-        }
+        foreach (\Forge\Core\Structure\StructureResolver::resolveModulesRoots() as $root) {
+            $modulesPath = BASE_PATH . '/' . $root;
+            if (!is_dir($modulesPath)) {
+                continue;
+            }
 
-        foreach (scandir($modulesPath) as $entry) {
-            if ($entry === "." || $entry === "..") {
-                continue;
-            }
-            $dir = $modulesPath . "/" . $entry;
-            if (!is_dir($dir)) {
-                continue;
-            }
-            $dirMtime = @filemtime($dir);
-            if ($dirMtime !== false && $dirMtime > $cacheMtime) {
-                return true;
+            foreach (scandir($modulesPath) as $entry) {
+                if ($entry === "." || $entry === "..") {
+                    continue;
+                }
+                $dir = $modulesPath . "/" . $entry;
+                if (!is_dir($dir)) {
+                    continue;
+                }
+                $dirMtime = @filemtime($dir);
+                if ($dirMtime !== false && $dirMtime > $cacheMtime) {
+                    return true;
+                }
             }
         }
 

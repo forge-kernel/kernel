@@ -54,7 +54,6 @@ final class RegistrySyncVersionsCommand extends Command
 
         $registryPath = $this->registryService->getRegistryPath('modules');
         $manifestPath = $registryPath . '/modules.json';
-        $sourceModulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
 
         $manifest = $this->manifestService->readModulesManifest($manifestPath);
         if (!$manifest || !is_array($manifest)) {
@@ -68,7 +67,7 @@ final class RegistrySyncVersionsCommand extends Command
 
         foreach ($manifest as $moduleNameKebab => $moduleData) {
             $moduleNamePascal = $this->kebabToPascal($moduleNameKebab);
-            $entryFile = $this->findModuleEntryFile($sourceModulesPath, $moduleNamePascal);
+            $entryFile = $this->findModuleEntryFile($moduleNamePascal);
 
             if (!$entryFile) {
                 continue;
@@ -141,8 +140,15 @@ final class RegistrySyncVersionsCommand extends Command
         return 0;
     }
 
-    private function findModuleEntryFile(string $basePath, string $moduleName): ?string
+    private function findModuleEntryFile(string $moduleName): ?string
     {
+        $root = StructureResolver::findModuleRoot(BASE_PATH, $moduleName);
+        if ($root === null) {
+            $this->warning("Module entry file not found for {$moduleName}.");
+            return null;
+        }
+
+        $basePath = BASE_PATH . '/' . $root;
         $file = StructureResolver::findModuleEntryFileStatic($basePath, $moduleName);
         if ($file !== null && $this->hasModuleAttribute($file)) {
             return $file;

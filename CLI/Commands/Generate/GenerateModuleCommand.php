@@ -37,6 +37,9 @@ final class GenerateModuleCommand extends Command
     #[Arg(name: 'version', description: 'Module version (e.g., 0.1.0)', default: '0.1.0', required: false)]
     private string $version = '0.1.0';
 
+    #[Arg(name: 'category', description: 'Module category: module (default) or capability', validate: '/^(module|capability)$/', required: false)]
+    private string $category = 'module';
+
     public function __construct(
         private readonly TemplateGenerator $templateGenerator,
         private readonly StructureResolver $structureResolver
@@ -76,7 +79,7 @@ final class GenerateModuleCommand extends Command
         );
         $includeHttp = strtolower(trim($includeHttp)) === 'y';
 
-        $moduleDir = BASE_PATH . '/' . $this->structureResolver->getModulesRoot() . '/' . $this->name;
+        $moduleDir = BASE_PATH . '/' . $this->getModulesRootForCategory($this->category) . '/' . $this->name;
         if (is_dir($moduleDir)) {
             $this->error("Module directory already exists: $moduleDir");
             return 1;
@@ -102,6 +105,35 @@ final class GenerateModuleCommand extends Command
             $this->info("Structure configuration has been persisted in the module class.");
         }
         return 0;
+    }
+
+    private function getModulesRootForCategory(string $category): string
+    {
+        $roots = $this->structureResolver->getModulesRoots();
+        $namespaces = $this->structureResolver->getModulesNamespaces();
+
+        $categoryLower = strtolower($category);
+        foreach ($roots as $i => $root) {
+            if (strtolower($namespaces[$i] ?? '') === $categoryLower) {
+                return $root;
+            }
+        }
+
+        return $roots[0] ?? 'modules';
+    }
+
+    private function getModulesNamespaceForCategory(string $category): string
+    {
+        $namespaces = $this->structureResolver->getModulesNamespaces();
+
+        $categoryLower = strtolower($category);
+        foreach ($namespaces as $ns) {
+            if (strtolower($ns) === $categoryLower) {
+                return $ns;
+            }
+        }
+
+        return $namespaces[0] ?? 'Modules';
     }
 
     private function getDefaultModuleStructure(): array
@@ -145,8 +177,11 @@ final class GenerateModuleCommand extends Command
             $structureAttribute .= "#[Structure(structure: {$structureArray})]\n";
         }
 
+        $moduleNamespace = $this->getModulesNamespaceForCategory($this->category);
+
         $tokens = [
             '{{ moduleName }}' => $this->name,
+            '{{ moduleNamespace }}' => $moduleNamespace,
             '{{ command }}' => $this->toKebabCase($this->name),
             '{{ interfaceName }}' => $this->name . 'Interface',
             '{{ serviceName }}' => $this->name . 'Service',
@@ -155,6 +190,7 @@ final class GenerateModuleCommand extends Command
             '{{ moduleConfig }}' => $this->toSnakeCase($this->name),
             '{{ structureAttribute }}' => $structureAttribute,
             '{{ frameworkVersion }}' => KERNEL_VERSION,
+            '{{ category }}' => $this->category,
         ];
 
         $commandsPath = $moduleStructure['commands'] ?? 'src/Commands';

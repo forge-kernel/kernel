@@ -17,6 +17,7 @@ final class Module
     public bool $core = false,
     public ?bool $isCli = false,
     public ?string $type = '',
+    public ?string $category = 'module',
     public ?string $author = null,
     public ?string $license = null,
     public ?array $tags = null,

@@ -92,11 +92,11 @@ final class ModuleVersionCommand extends Command
         }
 
         $moduleNameKebab = self::toKebabCase($this->name);
-        $modulesRoot = StructureResolver::resolveModulesRoot();
-        $modulePath = BASE_PATH . "/{$modulesRoot}/{$this->name}";
+        $moduleRoot = StructureResolver::findModuleRoot(BASE_PATH, $this->name);
+        $modulePath = $moduleRoot !== null ? BASE_PATH . "/{$moduleRoot}/{$this->name}" : null;
 
-        if (!is_dir($modulePath)) {
-            $this->error("Module directory not found: {$modulePath}");
+        if ($modulePath === null || !is_dir($modulePath)) {
+            $this->error("Module directory not found: {$this->name}");
             return 1;
         }
 

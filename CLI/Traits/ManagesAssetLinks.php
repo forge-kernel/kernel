@@ -20,7 +20,7 @@ trait ManagesAssetLinks
                 'link' => BASE_PATH . '/public/assets/app',
             ],
             'module' => [
-                'target' => BASE_PATH . '/' . StructureResolver::resolveModulesRoot() . "/{$this->toPascalCase($module)}/src/UI/assets",
+                'target' => BASE_PATH . '/' . (StructureResolver::findModuleRoot(BASE_PATH, $this->toPascalCase($module)) ?? StructureResolver::resolveModulesRoot()) . "/{$this->toPascalCase($module)}/src/UI/assets",
                 'link' => BASE_PATH . "/public/assets/modules/" . $this->toKebabCase($module),
             ],
             default => throw new InvalidArgumentException("Invalid asset type: {$type}")

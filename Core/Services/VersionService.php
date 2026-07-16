@@ -20,7 +20,11 @@ final class VersionService
 
     private function findModuleEntryFile(string $moduleName): ?string
     {
-        $modulesDir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
+        $root = \Forge\Core\Structure\StructureResolver::findModuleRoot(BASE_PATH, $moduleName);
+        if ($root === null) {
+            return null;
+        }
+        $modulesDir = BASE_PATH . '/' . $root;
         return \Forge\Core\Structure\StructureResolver::findModuleEntryFileStatic($modulesDir, $moduleName);
     }
 
@@ -105,7 +109,11 @@ final class VersionService
 
     public function updateModuleEntryFileVersion(string $moduleName, string $version): void
     {
-        $modulesDir = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot();
+        $root = \Forge\Core\Structure\StructureResolver::findModuleRoot(BASE_PATH, $moduleName);
+        if ($root === null) {
+            throw new InvalidArgumentException("Module entry file not found for module: {$moduleName}");
+        }
+        $modulesDir = BASE_PATH . '/' . $root;
         $entryFilePath = \Forge\Core\Structure\StructureResolver::findModuleEntryFileStatic($modulesDir, $moduleName);
 
         if (!$entryFilePath || !file_exists($entryFilePath)) {

@@ -59,10 +59,11 @@ final class ModuleCache
             return false;
         }
         foreach ($dirMtimes as $dir => $cachedMtime) {
-            if (!is_dir($dir)) {
+            $absoluteDir = self::toAbsolutePath($dir);
+            if (!is_dir($absoluteDir)) {
                 return false;
             }
-            $currentMtime = @filemtime($dir);
+            $currentMtime = @filemtime($absoluteDir);
             if ($currentMtime === false || $currentMtime > $cachedMtime) {
                 return false;
             }
@@ -91,9 +92,10 @@ final class ModuleCache
 
             $moduleData = [
                 'class' => $className,
-                'path' => $moduleDirectories[$name] ?? '',
+                'path' => self::toRelativePath($moduleDirectories[$name] ?? ''),
                 'order' => $meta['order'] ?? PHP_INT_MAX,
                 'type' => $meta['type'] ?? 'module',
+                'category' => $meta['category'] ?? 'module',
                 'core' => $meta['core'] ?? false,
             ];
 
@@ -163,7 +165,7 @@ final class ModuleCache
         $dirMtimes = [];
         foreach ($moduleDirectories as $dir) {
             if (is_dir($dir)) {
-                $dirMtimes[$dir] = @filemtime($dir) ?: 0;
+                $dirMtimes[self::toRelativePath($dir)] = @filemtime($dir) ?: 0;
             }
         }
 
@@ -266,5 +268,21 @@ final class ModuleCache
         }
 
         return $commands;
+    }
+
+    private static function toRelativePath(string $path): string
+    {
+        if (str_starts_with($path, BASE_PATH . '/')) {
+            return substr($path, strlen(BASE_PATH) + 1);
+        }
+        return $path;
+    }
+
+    private static function toAbsolutePath(string $path): string
+    {
+        if (!str_starts_with($path, '/')) {
+            return BASE_PATH . '/' . $path;
+        }
+        return $path;
     }
 }

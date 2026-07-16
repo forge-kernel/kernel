@@ -49,9 +49,11 @@ final class ServiceDiscoverSetup
             }
         }
 
-        $modulesRoot = $structureResolver->getModulesRoot();
-        $modulesPath = BASE_PATH . '/' . $modulesRoot;
-        if (is_dir($modulesPath)) {
+        foreach ($structureResolver->getModulesRoots() as $modulesRoot) {
+            $modulesPath = BASE_PATH . '/' . $modulesRoot;
+            if (!is_dir($modulesPath)) {
+                continue;
+            }
             foreach (scandir($modulesPath) as $moduleName) {
                 if ($moduleName === '.' || $moduleName === '..') {
                     continue;

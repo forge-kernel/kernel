@@ -49,7 +49,6 @@ final class RegistryReadmeUpdateCommand extends Command
         $registryPath = $this->registryService->getRegistryPath('modules');
         $manifestPath = $registryPath . '/modules.json';
         $readmePath = $registryPath . '/README.md';
-        $sourceModulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
 
         $this->info('Updating README format...');
         $this->readmeService->updateReadmeFormat($readmePath);
@@ -58,7 +57,7 @@ final class RegistryReadmeUpdateCommand extends Command
         $this->readmeService->addRegistrySetupInstructions($readmePath);
 
         $this->info('Reading modules from registry...');
-        $modules = $this->readmeService->readAllModulesFromRegistry($registryPath, $manifestPath, $sourceModulesPath);
+        $modules = $this->readmeService->readAllModulesFromRegistry($registryPath, $manifestPath);
 
         $this->info('Updating module list table...');
         if (!$this->readmeService->updateModuleListTable($readmePath, $modules)) {

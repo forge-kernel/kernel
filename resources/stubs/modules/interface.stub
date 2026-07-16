@@ -1,6 +1,6 @@
 <?php
 
-namespace Modules\{{ moduleName }}\Contracts;
+namespace {{ moduleNamespace }}\{{ moduleName }}\Contracts;
 
 interface {{ interfaceName }}
 {

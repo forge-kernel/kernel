@@ -26,8 +26,8 @@ trait ModuleHelper
 
         foreach ($requirements['modules'] ?? [] as $requiredModule => $versionConstraint) {
             $moduleDirName = $this->nameToPascalCase($requiredModule);
-            $modulePath = BASE_PATH . '/' . \Forge\Core\Structure\StructureResolver::resolveModulesRoot() . '/' . $moduleDirName;
-            if (!is_dir($modulePath)) {
+            $moduleRoot = \Forge\Core\Structure\StructureResolver::findModuleRoot(BASE_PATH, $moduleDirName);
+            if ($moduleRoot === null) {
                 throw new RuntimeException(
                     "Module '{$moduleName}' requires module '{$requiredModule}' (constraint: {$versionConstraint}) which is not installed."
                 );

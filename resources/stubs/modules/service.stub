@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-namespace Modules\{{ moduleName }}\Services;
+namespace {{ moduleNamespace }}\{{ moduleName }}\Services;
 
 use Forge\Core\Module\Attributes\Provides;
-use Modules\{{ moduleName }}\Contracts\{{ interfaceName }};
+use {{ moduleNamespace }}\{{ moduleName }}\Contracts\{{ interfaceName }};
 
 #[Provides(interface: {{ interfaceName }}::class, version: '{{ moduleVersion }}')]
 final class {{ serviceName }} implements {{ interfaceName }}

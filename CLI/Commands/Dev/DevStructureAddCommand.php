@@ -170,32 +170,34 @@ final class DevStructureAddCommand extends Command
     private function discoverModules(): array
     {
         $modules = [];
-        $modulesPath = BASE_PATH . '/' . StructureResolver::resolveModulesRoot();
 
-        if (!is_dir($modulesPath)) {
-            return $modules;
-        }
-
-        $directories = array_filter(
-            scandir($modulesPath),
-            fn($item) => is_dir("$modulesPath/$item") && !in_array($item, ['.', '..'])
-        );
-
-        foreach ($directories as $directoryName) {
-            $modulePath = "$modulesPath/$directoryName";
-            $srcPath = "$modulePath/src";
-
-            if (!is_dir($srcPath)) {
+        foreach (StructureResolver::resolveModulesRoots() as $root) {
+            $modulesPath = BASE_PATH . '/' . $root;
+            if (!is_dir($modulesPath)) {
                 continue;
             }
 
-            $moduleClass = $this->findModuleClass($srcPath);
-            if ($moduleClass) {
-                $modules[] = [
-                    'name' => $directoryName,
-                    'className' => $moduleClass['className'],
-                    'filePath' => $moduleClass['filePath'],
-                ];
+            $directories = array_filter(
+                scandir($modulesPath),
+                fn($item) => is_dir("$modulesPath/$item") && !in_array($item, ['.', '..'])
+            );
+
+            foreach ($directories as $directoryName) {
+                $modulePath = "$modulesPath/$directoryName";
+                $srcPath = "$modulePath/src";
+
+                if (!is_dir($srcPath)) {
+                    continue;
+                }
+
+                $moduleClass = $this->findModuleClass($srcPath);
+                if ($moduleClass) {
+                    $modules[] = [
+                        'name' => $directoryName,
+                        'className' => $moduleClass['className'],
+                        'filePath' => $moduleClass['filePath'],
+                    ];
+                }
             }
         }
 
