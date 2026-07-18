@@ -109,11 +109,21 @@ final class StructureInitCommand extends Command
                 break;
 
             case '2':
-                $structure = ['app' => $internalStructure['app'] ?? []];
+                $structure = [
+                    'app_root' => $internalStructure['app_root'] ?? 'app',
+                    'app_namespace' => $internalStructure['app_namespace'] ?? 'App',
+                    'app' => $internalStructure['app'] ?? [],
+                ];
                 break;
 
             case '3':
-                $structure = ['modules' => $internalStructure['modules'] ?? []];
+                $structure = [
+                    'modules_root' => $internalStructure['modules_root'] ?? 'modules',
+                    'modules_namespace' => $internalStructure['modules_namespace'] ?? 'Modules',
+                    'module_entry_files' => $internalStructure['module_entry_files'] ?? ['{name}Module.php', '{name}.php'],
+                    'module_entry_glob' => $internalStructure['module_entry_glob'] ?? '*Module.php',
+                    'modules' => $internalStructure['modules'] ?? [],
+                ];
                 break;
 
             case '4':
@@ -305,47 +315,36 @@ final class StructureInitCommand extends Command
 
     private function writeStructureFile(array $structure): void
     {
-        $content = "<?php\n\nreturn [\n";
-
-        if (isset($structure['app_root'])) {
-            $content .= "  'app_root' => " . $this->exportValue($structure['app_root']) . ",\n";
-        }
-        if (isset($structure['app_namespace'])) {
-            $content .= "  'app_namespace' => " . $this->exportValue($structure['app_namespace']) . ",\n";
-        }
-        if (isset($structure['modules_root'])) {
-            $content .= "  'modules_root' => " . $this->exportValue($structure['modules_root']) . ",\n";
-        }
-        if (isset($structure['modules_namespace'])) {
-            $content .= "  'modules_namespace' => " . $this->exportValue($structure['modules_namespace']) . ",\n";
-        }
-
-        if (isset($structure['app'])) {
-            $content .= "  'app' => [\n";
-            foreach ($structure['app'] as $type => $path) {
-                $content .= "    '{$type}' => " . $this->exportValue($path) . ",\n";
-            }
-            $content .= "  ],\n";
-        }
-
-        if (isset($structure['modules'])) {
-            $content .= "  'modules' => [\n";
-            foreach ($structure['modules'] as $type => $path) {
-                $content .= "    '{$type}' => " . $this->exportValue($path) . ",\n";
-            }
-            $content .= "  ],\n";
-        }
-
-        $content .= "];\n";
+        $content = "<?php\n\nreturn " . $this->exportArray($structure, 0) . ";\n";
 
         file_put_contents(self::OUTPUT_FILE, $content);
     }
 
-    private function exportValue(string|array $value): string
+    private function exportValue(string|array $value, int $depth = 0): string
     {
         if (is_array($value)) {
-            return var_export($value, true);
+            return $this->exportArray($value, $depth);
         }
         return "'" . addslashes($value) . "'";
+    }
+
+    private function exportArray(array $array, int $depth = 0): string
+    {
+        if (empty($array)) {
+            return '[]';
+        }
+
+        $isAssoc = !array_is_list($array);
+        $innerIndent = str_repeat('  ', $depth + 1);
+        $lines = [];
+        foreach ($array as $key => $item) {
+            $keyStr = $isAssoc ? "'" . addslashes($key) . "' => " : '';
+            if (is_array($item)) {
+                $lines[] = "{$innerIndent}{$keyStr}" . $this->exportArray($item, $depth + 1) . ",";
+            } else {
+                $lines[] = "{$innerIndent}{$keyStr}'" . addslashes($item) . "',";
+            }
+        }
+        return "[\n" . implode("\n", $lines) . "\n" . str_repeat('  ', $depth) . "]";
     }
 }
