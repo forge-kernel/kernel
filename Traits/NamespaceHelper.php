@@ -35,8 +35,16 @@ trait NamespaceHelper
       }
     }
 
-    $moduleNamespacePrefix = $modulesNamespace . '\\' . str_replace('-', '\\', $moduleName);
+    $dashedName = str_replace('-', '\\', $moduleName);
+    $moduleNamespacePrefix = $modulesNamespace . '\\' . $dashedName;
     Autoloader::addPath($moduleNamespacePrefix . '\\', $basePath);
+
+    $allNamespaces = \Forge\Core\Structure\StructureResolver::resolveModulesNamespaces();
+    foreach ($allNamespaces as $ns) {
+      if ($ns !== $modulesNamespace) {
+        Autoloader::addPath($ns . '\\' . $dashedName . '\\', $basePath);
+      }
+    }
   }
 
   private function resolveModulesNamespaceForPath(

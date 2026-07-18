@@ -114,10 +114,11 @@ final class Autoloader
 
         self::$moduleNamespacePrefixes = array_map('strtolower', $modulesNamespaces);
 
-        foreach ($modulesRoots as $i => $root) {
+        foreach ($modulesRoots as $root) {
             if (is_dir(BASE_PATH . '/' . $root)) {
-                $nsPrefix = strtolower($modulesNamespaces[$i] ?? $modulesNamespaces[0]);
-                self::addPath($nsPrefix, BASE_PATH . '/' . $root);
+                foreach ($modulesNamespaces as $ns) {
+                    self::addPath($ns, BASE_PATH . '/' . $root);
+                }
             }
         }
     }
