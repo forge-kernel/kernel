@@ -133,6 +133,10 @@ final class StructureInfoCommand extends Command
       }
       $this->line("");
 
+      $this->line("  modules_root: " . $this->formatPath(StructureResolver::resolveModulesRoots()));
+      $this->line("  modules_namespace: " . $this->formatPath(StructureResolver::resolveModulesNamespaces()));
+      $this->line("");
+
       $this->displayAppStructure($structureResolver, $userStructureFile);
 
       if (!empty($modules)) {
@@ -148,17 +152,30 @@ final class StructureInfoCommand extends Command
     return 0;
   }
 
+  private function formatPath(string|array $path): string
+  {
+    if (is_array($path)) {
+      return implode(', ', $path);
+    }
+    return $path;
+  }
+
   private function displayAppStructure(StructureResolver $structureResolver, ?string $userStructureFile): void
   {
     $this->info("App Structure:");
     if ($userStructureFile) {
       $this->comment("  (User-defined overrides applied)");
     }
+
+    $this->line("  app_root: " . $this->formatPath($structureResolver->getAppRoots()));
+    $this->line("  app_namespace: " . $this->formatPath($structureResolver->getAppNamespaces()));
+    $this->line("");
+
     $appStructure = $structureResolver->getFullAppStructure();
     $headers = ['Type', 'Path'];
     $rows = [];
     foreach ($appStructure as $type => $path) {
-      $rows[] = ['Type' => $type, 'Path' => $path];
+      $rows[] = ['Type' => $type, 'Path' => $this->formatPath($path)];
     }
     $this->table($headers, $rows);
     $this->line("");
@@ -171,12 +188,27 @@ final class StructureInfoCommand extends Command
     $this->line("");
 
     $userStructure = require $userStructureFile;
+
+    if (isset($userStructure['app_root'])) {
+      $this->line("  app_root: " . $this->formatPath($userStructure['app_root']));
+    }
+    if (isset($userStructure['app_namespace'])) {
+      $this->line("  app_namespace: " . $this->formatPath($userStructure['app_namespace']));
+    }
+    if (isset($userStructure['modules_root'])) {
+      $this->line("  modules_root: " . $this->formatPath($userStructure['modules_root']));
+    }
+    if (isset($userStructure['modules_namespace'])) {
+      $this->line("  modules_namespace: " . $this->formatPath($userStructure['modules_namespace']));
+    }
+    $this->line("");
+
     if (isset($userStructure['app'])) {
       $this->info("App Structure (from user file):");
       $headers = ['Type', 'Path'];
       $rows = [];
       foreach ($userStructure['app'] as $type => $path) {
-        $rows[] = ['Type' => $type, 'Path' => $path];
+        $rows[] = ['Type' => $type, 'Path' => $this->formatPath($path)];
       }
       $this->table($headers, $rows);
       $this->line("");
@@ -187,7 +219,7 @@ final class StructureInfoCommand extends Command
       $headers = ['Type', 'Path'];
       $rows = [];
       foreach ($userStructure['modules'] as $type => $path) {
-        $rows[] = ['Type' => $type, 'Path' => $path];
+        $rows[] = ['Type' => $type, 'Path' => $this->formatPath($path)];
       }
       $this->table($headers, $rows);
       $this->line("");
@@ -201,7 +233,7 @@ final class StructureInfoCommand extends Command
       $this->info("Module: {$moduleName}");
       $moduleRows = [];
       foreach ($moduleStructure as $type => $path) {
-        $moduleRows[] = ['Type' => $type, 'Path' => $path];
+        $moduleRows[] = ['Type' => $type, 'Path' => $this->formatPath($path)];
       }
       $this->table(['Type', 'Path'], $moduleRows);
       $this->line("");

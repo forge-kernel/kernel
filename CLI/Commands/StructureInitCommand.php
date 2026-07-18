@@ -91,11 +91,12 @@ final class StructureInitCommand extends Command
         $internalStructure = require self::INTERNAL_STRUCTURE_PATH;
 
         $this->line("What would you like to customize?");
-        $this->line("  1) Full structure (app + modules)");
+        $this->line("  1) Full structure (roots + app + modules)");
         $this->line("  2) App structure only");
         $this->line("  3) Modules structure only");
         $this->line("  4) Partial (select specific entries)");
-        $this->prompt("\033[1;36mSelect option (1-4):\033[0m ");
+        $this->line("  5) Roots & namespaces only (app_root, modules_root, etc.)");
+        $this->prompt("\033[1;36mSelect option (1-5):\033[0m ");
 
         $choice = trim(fgets(STDIN));
         $this->line("");
@@ -119,8 +120,12 @@ final class StructureInitCommand extends Command
                 $structure = $this->selectPartialStructure($internalStructure);
                 break;
 
+            case '5':
+                $structure = $this->selectRootsAndNamespaces($internalStructure);
+                break;
+
             default:
-                $this->error("Invalid option. Please select 1-4.");
+                $this->error("Invalid option. Please select 1-5.");
                 return 1;
         }
 
@@ -192,7 +197,8 @@ final class StructureInitCommand extends Command
         $typeMap = [];
 
         foreach ($types as $type => $path) {
-            $this->line("  {$index}) {$type} => {$path}");
+            $displayPath = is_array($path) ? implode(', ', $path) : $path;
+            $this->line("  {$index}) {$type} => {$displayPath}");
             $typeMap[$index] = $type;
             $index++;
         }
@@ -231,6 +237,13 @@ final class StructureInitCommand extends Command
     {
         $merged = $existing;
 
+        $rootKeys = ['app_root', 'app_namespace', 'modules_root', 'modules_namespace'];
+        foreach ($rootKeys as $key) {
+            if (isset($new[$key])) {
+                $merged[$key] = $new[$key];
+            }
+        }
+
         if (isset($new['app'])) {
             if (!isset($merged['app'])) {
                 $merged['app'] = [];
@@ -248,14 +261,69 @@ final class StructureInitCommand extends Command
         return $merged;
     }
 
+    private function selectRootsAndNamespaces(array $internalStructure): array
+    {
+        $structure = [];
+
+        $this->line("Current roots and namespaces:");
+        $this->line("  app_root: " . (is_array($internalStructure['app_root'] ?? null) ? implode(', ', $internalStructure['app_root']) : ($internalStructure['app_root'] ?? 'app')));
+        $this->line("  app_namespace: " . ($internalStructure['app_namespace'] ?? 'App'));
+        $this->line("  modules_root: " . (is_array($internalStructure['modules_root'] ?? null) ? implode(', ', $internalStructure['modules_root']) : ($internalStructure['modules_root'] ?? 'modules')));
+        $this->line("  modules_namespace: " . (is_array($internalStructure['modules_namespace'] ?? null) ? implode(', ', $internalStructure['modules_namespace']) : ($internalStructure['modules_namespace'] ?? 'Modules')));
+        $this->line("");
+
+        $this->line("Leave blank to keep current value, or enter new value.");
+        $this->line("For arrays, separate values with commas (e.g., 'modules,capabilities').");
+        $this->line("");
+
+        $this->prompt("\033[1;36mapp_root:\033[0m ");
+        $appRoot = trim(fgets(STDIN));
+        if (!empty($appRoot)) {
+            $structure['app_root'] = str_contains($appRoot, ',') ? array_map('trim', explode(',', $appRoot)) : $appRoot;
+        }
+
+        $this->prompt("\033[1;36mapp_namespace:\033[0m ");
+        $appNs = trim(fgets(STDIN));
+        if (!empty($appNs)) {
+            $structure['app_namespace'] = str_contains($appNs, ',') ? array_map('trim', explode(',', $appNs)) : $appNs;
+        }
+
+        $this->prompt("\033[1;36mmodules_root:\033[0m ");
+        $modulesRoot = trim(fgets(STDIN));
+        if (!empty($modulesRoot)) {
+            $structure['modules_root'] = str_contains($modulesRoot, ',') ? array_map('trim', explode(',', $modulesRoot)) : $modulesRoot;
+        }
+
+        $this->prompt("\033[1;36mmodules_namespace:\033[0m ");
+        $modulesNs = trim(fgets(STDIN));
+        if (!empty($modulesNs)) {
+            $structure['modules_namespace'] = str_contains($modulesNs, ',') ? array_map('trim', explode(',', $modulesNs)) : $modulesNs;
+        }
+
+        return $structure;
+    }
+
     private function writeStructureFile(array $structure): void
     {
         $content = "<?php\n\nreturn [\n";
 
+        if (isset($structure['app_root'])) {
+            $content .= "  'app_root' => " . $this->exportValue($structure['app_root']) . ",\n";
+        }
+        if (isset($structure['app_namespace'])) {
+            $content .= "  'app_namespace' => " . $this->exportValue($structure['app_namespace']) . ",\n";
+        }
+        if (isset($structure['modules_root'])) {
+            $content .= "  'modules_root' => " . $this->exportValue($structure['modules_root']) . ",\n";
+        }
+        if (isset($structure['modules_namespace'])) {
+            $content .= "  'modules_namespace' => " . $this->exportValue($structure['modules_namespace']) . ",\n";
+        }
+
         if (isset($structure['app'])) {
             $content .= "  'app' => [\n";
             foreach ($structure['app'] as $type => $path) {
-                $content .= "    '{$type}' => '{$path}',\n";
+                $content .= "    '{$type}' => " . $this->exportValue($path) . ",\n";
             }
             $content .= "  ],\n";
         }
@@ -263,7 +331,7 @@ final class StructureInitCommand extends Command
         if (isset($structure['modules'])) {
             $content .= "  'modules' => [\n";
             foreach ($structure['modules'] as $type => $path) {
-                $content .= "    '{$type}' => '{$path}',\n";
+                $content .= "    '{$type}' => " . $this->exportValue($path) . ",\n";
             }
             $content .= "  ],\n";
         }
@@ -271,5 +339,13 @@ final class StructureInitCommand extends Command
         $content .= "];\n";
 
         file_put_contents(self::OUTPUT_FILE, $content);
+    }
+
+    private function exportValue(string|array $value): string
+    {
+        if (is_array($value)) {
+            return var_export($value, true);
+        }
+        return "'" . addslashes($value) . "'";
     }
 }
