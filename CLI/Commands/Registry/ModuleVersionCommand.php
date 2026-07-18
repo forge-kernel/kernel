@@ -144,7 +144,7 @@ final class ModuleVersionCommand extends Command
 
         if ($this->gitService->isGitRepository(BASE_PATH)) {
             $entryFilePath = StructureResolver::findModuleEntryFileStatic(
-                BASE_PATH . '/' . $modulesRoot,
+                BASE_PATH . '/' . $moduleRoot,
                 $this->name
             );
             $entryFilePath = $entryFilePath !== null

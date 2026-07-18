@@ -136,7 +136,7 @@ final class RegistryManageCommand extends Command
 
         if ($this->gitService->isGitRepository(BASE_PATH)) {
             $entryFilePath = StructureResolver::findModuleEntryFileStatic(
-                BASE_PATH . '/' . $modulesRoot,
+                BASE_PATH . '/' . $moduleRoot,
                 $this->name
             );
             $entryFilePath = $entryFilePath !== null
@@ -221,14 +221,14 @@ final class RegistryManageCommand extends Command
         }
 
         $this->info("Updating README module list...");
-        $entryFile = $this->findModuleEntryFile(BASE_PATH . '/' . $modulesRoot, $this->name);
+        $entryFile = $this->findModuleEntryFile(BASE_PATH . '/' . $moduleRoot, $this->name);
         if ($entryFile) {
             $metadata = $this->metadataService->extractFromFile($entryFile);
             if ($metadata) {
                 $metadata['version'] = $this->version;
                 $readmePath = $registryPath . '/README.md';
                 if (!$this->readmeService->updateModuleInTable($readmePath, $this->name, $metadata)) {
-                    $modules = $this->readmeService->readAllModulesFromRegistry($registryPath, $manifestPath, BASE_PATH . '/' . $modulesRoot);
+                    $modules = $this->readmeService->readAllModulesFromRegistry($registryPath, $manifestPath, BASE_PATH . '/' . $moduleRoot);
                     $this->readmeService->updateModuleListTable($readmePath, $modules);
                 }
             }
