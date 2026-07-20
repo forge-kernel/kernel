@@ -29,7 +29,14 @@ final class ErrorHandlerSetup
         $errorHandlerInterface = 'Modules\ForgeRouter\Contracts\ErrorHandlerInterface';
         $errorHandler = null;
 
-        if (interface_exists($errorHandlerInterface)) {
+        $interfaceLoaded = false;
+        try {
+            $interfaceLoaded = interface_exists($errorHandlerInterface);
+        } catch (\Throwable) {
+            $interfaceLoaded = false;
+        }
+
+        if ($interfaceLoaded) {
             try {
                 if ($container->has($errorHandlerInterface)) {
                     $errorHandler = $container->get($errorHandlerInterface);
@@ -120,16 +127,7 @@ final class ErrorHandlerSetup
         string $originalMessage,
     ): void {
         if ($isCli) {
-            fwrite(STDERR, "\n  " . $originalType . "\n\n");
-            fwrite(STDERR, "  Message:\n");
-            fwrite(STDERR, "    " . $originalMessage . "\n\n");
-            fwrite(STDERR, "  Origin:\n");
-            fwrite(STDERR, "    " . $originFile . ":" . $originLine . "\n\n");
-            fwrite(STDERR, "  Stack Trace:\n");
-            foreach (explode("\n", $e->getTraceAsString()) as $line) {
-                fwrite(STDERR, "    " . $line . "\n");
-            }
-            fwrite(STDERR, "\n");
+            CliErrorHandler::handle($e, true);
             return;
         }
 

@@ -46,11 +46,12 @@ use Forge\CLI\Commands\Registry\BlueprintVersionCommand;
 use Forge\CLI\Commands\Dev\DevStructureAddCommand;
 use Forge\CLI\Commands\StructureInfoCommand;
 use Forge\CLI\Commands\StructureInitCommand;
+use Forge\CLI\Traits\OutputHelper;
+use Forge\Core\Bootstrap\CliErrorHandler;
 use Forge\Core\Config\Environment;
 use Forge\Core\DI\Container;
-use Forge\Core\Helpers\FileExistenceCache;
 use Forge\Exceptions\MissingServiceException;
-use ReflectionClass;
+use Forge\Exceptions\ResolveParameterException;
 use ReflectionException;
 
 final class Application
@@ -118,7 +119,7 @@ final class Application
         string $commandClass,
         string $prefix = "module:",
     ): void {
-        $reflectionClass = new ReflectionClass($commandClass);
+        $reflectionClass = new \ReflectionClass($commandClass);
         $commandAttribute =
             $reflectionClass->getAttributes(Command::class)[0] ?? $reflectionClass->getAttributes(Cli::class)[0] ?? null;
 
@@ -233,6 +234,8 @@ final class Application
             return 0;
         }
 
+        $dev = Environment::getInstance()->isDevelopment();
+
         foreach ($this->commands as $name => $commandInfo) {
             if ($name === $commandName) {
                 if (
@@ -246,8 +249,14 @@ final class Application
                 $commandClass = $commandInfo[0];
                 $command = $this->container->make($commandClass);
                 $args = array_slice($argv, 2);
-                $command->execute($args);
-                return 0;
+
+                try {
+                    $command->execute($args);
+                    return 0;
+                } catch (\Throwable $e) {
+                    CliErrorHandler::handle($e, $dev);
+                    return 1;
+                }
             }
         }
 

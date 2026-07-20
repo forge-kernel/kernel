@@ -35,6 +35,7 @@ final class ContainerCLISetup
         $container = Container::getInstance();
         self::loadIncludes();
         SessionSetup::setup($container);
+        ErrorHandlerSetup::setup($container);
 
         $container->singleton(Application::class, function () use ($container) {
             return Application::getInstance($container);
