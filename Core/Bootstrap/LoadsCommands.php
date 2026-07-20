@@ -24,7 +24,11 @@ trait LoadsCommands
 
         $app = $container->get(Application::class);
         $resolver = new StructureResolver();
-        $commands = $resolver->getAppPaths('commands');
+        $commands = $resolver->getAppConfig('commands');
+
+        if (!is_array($commands)) {
+            return;
+        }
 
         foreach ($commands as $commandClass) {
             $app->registerCommandClass($commandClass, '');

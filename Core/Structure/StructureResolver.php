@@ -46,6 +46,15 @@ final class StructureResolver
         return $this->getAppPaths($type)[0];
     }
 
+    public function getAppConfig(string $key): mixed
+    {
+        if (empty($this->appStructure)) {
+            $this->loadAppStructure();
+        }
+
+        return $this->appStructure[$key] ?? null;
+    }
+
     public function getModulePaths(string $module, string $type): array
     {
         if (!isset($this->moduleStructures[$module])) {
