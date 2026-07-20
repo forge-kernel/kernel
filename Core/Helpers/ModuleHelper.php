@@ -30,8 +30,12 @@ final class ModuleHelper
 
   public static function extractModuleNameFromPath(string $path): ?string
   {
-    if (preg_match('#modules/([^/]+)/#', $path, $matches)) {
-      return $matches[1];
+    $structureResolver = \Forge\Core\DI\Container::getInstance()->get(\Forge\Core\Structure\StructureResolver::class);
+    $roots = $structureResolver->getModulesRoots();
+    foreach ($roots as $root) {
+      if (preg_match('#' . preg_quote($root, '#') . '/([^/]+)/#', $path, $matches)) {
+        return $matches[1];
+      }
     }
     return null;
   }

@@ -284,7 +284,7 @@ trait OutputHelper
                     '  ];',
                     "  <?= component(name: '{$componentName}', slots: \$footerSlots) ?>",
                     '',
-                    'Component location: ' . ($type === 'app' ? 'app/UI/views/components/' : "modules/{$module}/src/UI/views/components/"),
+                    'Component location: ' . ($type === 'app' ? 'app/UI/views/components/' : $this->getModuleRelativePath($module) . "/src/UI/views/components/"),
                     'Props are automatically extracted as variables in the component view.',
                 ],
             ],
@@ -298,7 +298,7 @@ trait OutputHelper
                     "  <?php layout('{$name}', fromModule: true, moduleName: '{$module}') ?>",
                     '',
                     'The layout receives a $content variable containing the rendered view.',
-                    'Layout location: ' . ($type === 'app' ? 'app/UI/views/layouts/' : "modules/{$module}/src/UI/views/layouts/"),
+                    'Layout location: ' . ($type === 'app' ? 'app/UI/views/layouts/' : $this->getModuleRelativePath($module) . "/src/UI/views/layouts/"),
                 ],
             ],
             'controller' => [
@@ -478,5 +478,15 @@ trait OutputHelper
             return $name;
         }
         return "ui/{$name}";
+    }
+
+    private function getModuleRelativePath(string $module): string
+    {
+        $structureResolver = \Forge\Core\DI\Container::getInstance()->get(\Forge\Core\Structure\StructureResolver::class);
+        $modulesRoot = $structureResolver->findModuleRoot($module);
+        if ($modulesRoot !== null) {
+            return str_replace(BASE_PATH . '/', '', $modulesRoot) . '/' . $module;
+        }
+        return 'modules/' . $module;
     }
 }
