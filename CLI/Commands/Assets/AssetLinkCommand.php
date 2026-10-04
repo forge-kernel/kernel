@@ -9,6 +9,7 @@ use Forge\CLI\Attributes\Cli;
 use Forge\CLI\Command;
 use Forge\CLI\Traits\ManagesAssetLinks;
 use Forge\CLI\Traits\Wizard;
+use Forge\Core\Structure\StructureResolver;
 
 #[Cli(
     command: 'asset:link',
@@ -17,26 +18,22 @@ use Forge\CLI\Traits\Wizard;
     examples: [
         'asset:link --type=app',
         'asset:link --type=module --module=Blog',
-        'asset:link   (starts wizard)'
-    ]
+        'asset:link   (starts wizard)',
+    ],
 )]
 final class AssetLinkCommand extends Command
 {
+    public function __construct(
+        private readonly StructureResolver $structureResolver,
+    ) {}
+
     use Wizard;
     use ManagesAssetLinks;
 
-    #[Arg(
-        name: 'type',
-        description: 'Type of asset link (app or module)',
-        required: true, validate: 'app|module'
-    )]
+    #[Arg(name: 'type', description: 'Type of asset link (app or module)', required: true, validate: 'app|module')]
     private string $type = '';
 
-    #[Arg(
-        name: 'module',
-        description: 'Module name when type=module (e.g., Blog)',
-        required: false
-    )]
+    #[Arg(name: 'module', description: 'Module name when type=module (e.g., Blog)', required: false)]
     private ?string $module = null;
 
     public function execute(array $args): int

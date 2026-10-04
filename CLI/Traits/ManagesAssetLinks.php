@@ -16,7 +16,7 @@ trait ManagesAssetLinks
     {
         return match ($type) {
             'app' => [
-                'target' => BASE_PATH . '/app/UI/assets',
+                'target' => BASE_PATH . '/' . $this->structureResolver->getAppPath('assets'),
                 'link' => BASE_PATH . '/public/assets/app',
             ],
             'module' => [

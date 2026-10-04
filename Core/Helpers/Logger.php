@@ -17,8 +17,9 @@ final class Logger
     public static function log(string|Stringable $message, ?string $context = null): void
     {
         $message = (string) $message;
-        $truncated = mb_strlen($message) > self::MAX_LOG_LENGTH
-            ? mb_substr($message, 0, self::MAX_LOG_LENGTH) . '...'
+        $len = function_exists('mb_strlen') ? \mb_strlen($message) : strlen($message);
+        $truncated = $len > self::MAX_LOG_LENGTH
+            ? (function_exists('mb_substr') ? \mb_substr($message, 0, self::MAX_LOG_LENGTH) : substr($message, 0, self::MAX_LOG_LENGTH)) . '...'
             : $message;
 
         $line = sprintf(
